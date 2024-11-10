@@ -32,7 +32,7 @@ func register(info json.RawMessage) (bool, string, int) {
 		return false, "缺少必需字段", 0
 	}
 	// 创建用户
-	err = user.CreateUser(db)
+	err,_,_ = user.CreateUser()
 	if err != nil {
 		log.Println("用户创建失败:", err)
 		return false, "注册失败", 0
