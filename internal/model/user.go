@@ -19,36 +19,38 @@ type User struct {
 	Signature        string    `json:"signature"`
 	Birthday         time.Time `json:"birthday"`
 	RegistrationDate time.Time `json:"registration_date"`
+	VerifyCode       string    `json:"code"`
 }
 
 func (u *User) CreateUser() (error, string, string) {
-	db, err := repository.Connect()
-	if err != nil {
-		return err, "数据库连接失败", "0"
+	db, err_conn := repository.Connect()
+	if err_conn != nil {
+		return err_conn, "创建新用户连接数据库失败", "0"
 	}
 	defer db.Close()
 	//检查邮箱是否已经注册
-	query := "SELECT email FROM Users WHERE email = u.Email"
-	row := db.QueryRow(query)
+	query := "SELECT email FROM Users WHERE email = ?"
+	row := db.QueryRow(query, u.Email)
 	var email string
-	err = row.Scan(&email)
-	if err == nil {
-		return err, "邮箱已经注册", "0"
+	err_check := row.Scan(&email)
+	if err_check == nil {
+		return err_check, "邮箱已经注册", "0"
 	}
-	if u.Birthday.IsZero() {
-		u.Birthday = time.Date(1999, 1, 1, 0, 0, 0, 0, time.UTC)
-	}
-	query = `INSERT INTO Users (Uname, phone, email, address, password, avatar, signature, birthday, registration_date)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, DEFAULT)`
+	query = `INSERT INTO Users (Uname, email, password)
+              VALUES (?, ?, ?)`
 
-	result, err := db.Exec(query, u.Uname, u.Phone, u.Email, u.Address, u.Password, u.Avatar, u.Signature, u.Birthday)
-	if err != nil {
-		return err, "用户创建失败", "0"
+	result, err_insert := db.Exec(query, u.Uname, u.Email, u.Password)
+	if err_insert != nil {
+		return err_insert, "sql语句用户创建失败", "0"
 	}
-
-	userID, err := result.LastInsertId()
-	if err != nil {
-		return err, "获取用户ID失败", "0"
+	userID, err_id := result.LastInsertId()
+	if err_id != nil {
+		query_del := "DELETE FROM Users WHERE email = ?"
+		_, err_del := db.Exec(query_del, u.Email)
+		if err_del != nil {
+			return err_del, "或许新用户id失败,同时删除新用户失败", "0"
+		}
+		return err_id, "获取新用户ID失败", "0"
 	}
 	u.UserID = int(userID)
 
