@@ -236,61 +236,134 @@ func UpdatePersonalSettings(c *gin.Context) {
 
 
 /*
-// updatePassword 更新用户密码
-func updatePassword(info json.RawMessage) (bool, string) {
-	var request struct {
-		Email       string `json:"email"`
-		NewPassword string `json:"new_password"`
-	}
+// 找回密码
+func ForgotPassword(c *gin.Context) {
+    var request model.ForgotPasswordRequest
+    if err := c.ShouldBindJSON(&request); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+        return
+    }
 
-	err := json.Unmarshal(info, &request)
-	if err != nil {
-		return false, "无效的 JSON 数据"
-	}
+    db, err := repository.Connect()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+        return
+    }
+    defer db.Close()
 
-	if request.Email == "" || request.NewPassword == "" {
-		return false, "缺少必需字段"
-	}
+    var userID int
+    err = db.QueryRow("SELECT user_id FROM users WHERE email = ?", request.Email).Scan(&userID)
+    if err != nil {
+        if err == sql.ErrNoRows {
+            c.JSON(http.StatusNotFound, gin.H{"isok": false, "failreason": "邮箱未注册"})
+        } else {
+            c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库查询失败"})
+        }
+        return
+    }
 
-	var user model.User
-	err, msg := user.UpdatePassword(request.Email, request.NewPassword)
-	if err != nil {
-		log.Println("更新密码失败:", err)
-		return false, msg
-	}
+    requestData := map[string]string{
+        "mail": request.Email,
+    }
+    c.Set("type", "find")
+    c.Set("requestData", requestData)
 
-	return true, "密码更新成功"
+    SendMailInterface(c)
+
+    c.JSON(http.StatusOK, gin.H{"isok": true, "message": "验证码已发送到您的邮箱"})
 }
 
-// getUserInfo 获取用户信息
-func getUserInfo(userID string) (bool, string, *model.User) {
-	var user model.User
-	err, msg, user := user.GetUserInfo(userID)
-	if err != nil {
-		log.Println("获取用户信息失败:", err)
-		return false, msg, nil
-	}
 
-	return true, "获取用户信息成功", user
+// 获取个人信息
+func GetPersonalInfo(c *gin.Context) {
+    userID, exists := c.Get("userID")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"isok": false, "failreason": "未授权"})
+        return
+    }
+
+    db, err := repository.Connect()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+        return
+    }
+    defer db.Close()
+
+    row := db.QueryRow(`
+        SELECT user_id, uname, phone, email, address, avatar, signature, birthday 
+        FROM users WHERE user_id = ?`, userID)
+    
+    var userName, phone, email, address, avatar, signature string
+    var birthday string
+    var uid int
+
+    err = row.Scan(&uid, &userName, &phone, &email, &address, &avatar, &signature, &birthday)
+    if err != nil {
+        if err == sql.ErrNoRows {
+            c.JSON(http.StatusNotFound, gin.H{"isok": false, "failreason": "用户不存在"})
+        } else {
+            c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库查询失败"})
+        }
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "isok":     true,
+        "userID":   uid,
+        "userName": userName,
+        "phone":    phone,
+        "email":    email,
+        "address":  address,
+        "avatar":   avatar,
+        "signature": signature,
+        "birthday": birthday,
+    })
 }
 
-// updateUserInfo 更新用户信息
-func updateUserInfo(info json.RawMessage) (bool, string) {
-	var user model.User
-	err := json.Unmarshal(info, &user)
-	if err != nil {
-		return false, "无效的 JSON 数据"
-	}
+// 更新个人信息
+func UpdatePersonalInfo(c *gin.Context) {
+    var updateData model.UpdatePersonalInfoRequest
+    if err := c.ShouldBindJSON(&updateData); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+        return
+    }
 
-	if user.UserID == 0 {
-		return false, "缺少用户ID"
-	}
+    userID, exists := c.Get("userID")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"isok": false, "failreason": "未授权"})
+        return
+    }
 
-	err, msg := user.UpdateUserInfo()
-	if err != nil {
-		log.Println("更新用户信息失败:", err)
-		return false, msg
-	}
+    db, err := repository.Connect()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+        return
+    }
+    defer db.Close()
 
-	return true, "个人信息更新成功"
-}*/
+    stmt, err := db.Prepare(`
+        UPDATE users 
+        SET uname = ?, phone = ?, email = ?, address = ?, avatar = ?, signature = ?, birthday = ? 
+        WHERE user_id = ?`)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "准备更新失败"})
+        return
+    }
+
+    _, err = stmt.Exec(
+        updateData.UserName, 
+        updateData.Phone, 
+        updateData.Email, 
+        updateData.Address, 
+        updateData.Avatar, 
+        updateData.Signature, 
+        updateData.Birthday, 
+        userID)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "更新失败"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"isok": true, "message": "个人信息更新成功"})
+}
+*/
