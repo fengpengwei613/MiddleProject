@@ -15,12 +15,10 @@ func main() {
 	r.POST("/api/regist/mail", func(c *gin.Context) {
 		fmt.Println("收到发验证码请求")
 		service.SendMailInterface(c)
-
 	})
 	r.POST("/api/regist", func(c *gin.Context) {
 		fmt.Println("收到注册请求")
 		service.Register(c)
-
 	})
 	//发帖
 	r.POST("/api/newlog", func(c *gin.Context) {
@@ -32,6 +30,17 @@ func main() {
 		fmt.Println("收到评论请求")
 		service.PublishComment(c)
 	})
+	//登录
+	r.POST("/api/login", func(c *gin.Context) {
+		fmt.Println("收到登录请求")
+		service.Login(c)
+	})
+	//获取个人设置接口
+	r.GET("/api/persetting", service.HandleGetPersonalSettings)
+
+	//更新个人设置接口
+	r.POST("/api/persetting/edit", service.UpdatePersonalSettings)
+
 	// 启动 HTTP 服务器
 	if err := r.Run(":8080"); err != nil {
 		fmt.Println("启动服务器失败:", err)

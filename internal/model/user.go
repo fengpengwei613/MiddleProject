@@ -56,3 +56,23 @@ func (u *User) CreateUser() (error, string, string) {
 
 	return nil, "注册成功", strconv.Itoa(int(userID))
 }
+
+// 个人设置结构体
+type PersonalSettings struct {
+	ShowLike    bool
+	ShowCollect bool
+	ShowPhone   bool
+	ShowMail    bool
+}
+
+type UpdatePersonalSettings struct {
+	Type   string `json:"type"`
+	Value  string `json:"value"`
+	UserId string `json:"uid"`
+}
+
+// LoginRequest 登录请求结构体
+type LoginRequest struct {
+	Userid   int    `json:"user_id"`
+	Password string `json:"password"`
+}
