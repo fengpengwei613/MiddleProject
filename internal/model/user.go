@@ -4,6 +4,9 @@ import (
 	"middleproject/internal/repository"
 	"strconv"
 	"time"
+	"database/sql"
+	"errors"
+	
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -76,3 +79,69 @@ type LoginRequest struct {
 	Userid   int    `json:"user_id"`
 	Password string `json:"password"`
 }
+
+
+
+
+/*
+//更新密码
+func (u *User) UpdatePassword(email, newPassword string) (error, string) {
+	db, err := repository.Connect()
+	if err != nil {
+		return err, "数据库连接失败"
+	}
+	defer db.Close()
+
+	query := "UPDATE Users SET password = ? WHERE email = ?"
+	_, err = db.Exec(query, newPassword, email)
+	if err != nil {
+		return err, "更新密码失败"
+	}
+
+	return nil, "密码更新成功"
+}
+
+// 获取用户信息
+func (u *User) GetUserInfo(userID string) (error, *User) {
+	db, err := repository.Connect()
+	if err != nil {
+		return err, nil
+	}
+	defer db.Close()
+
+	// 查询用户信息
+	query := `SELECT user_id, uname, phone, email, address, avatar, signature, birthday, registration_date
+              FROM Users WHERE user_id = ?`
+	row := db.QueryRow(query, userID)
+
+	var user User
+	err = row.Scan(&user.UserID, &user.Uname, &user.Phone, &user.Email, &user.Address, &user.Avatar, &user.Signature, &user.Birthday, &user.RegistrationDate)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return errors.New("用户不存在"), nil
+		}
+		return err, nil
+	}
+
+	return nil, &user
+}
+
+// 更新用户信息
+func (u *User) UpdateUserInfo() (error, string) {
+	db, err := repository.Connect()
+	if err != nil {
+		return err, "数据库连接失败"
+	}
+	defer db.Close()
+
+	// 更新用户信息
+	query := `UPDATE Users
+              SET uname = ?, phone = ?, address = ?, avatar = ?, signature = ?, birthday = ?
+              WHERE user_id = ?`
+	_, err = db.Exec(query, u.Uname, u.Phone, u.Address, u.Avatar, u.Signature, u.Birthday, u.UserID)
+	if err != nil {
+		return err, "更新个人信息失败"
+	}
+
+	return nil, "个人信息更新成功"
+}*/
