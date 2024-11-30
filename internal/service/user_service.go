@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"log"
 
 	"github.com/gin-gonic/gin"
 
@@ -232,3 +233,64 @@ func UpdatePersonalSettings(c *gin.Context) {
 	}
 	c.JSON(200, gin.H{"isok": true})
 }
+
+
+/*
+// updatePassword 更新用户密码
+func updatePassword(info json.RawMessage) (bool, string) {
+	var request struct {
+		Email       string `json:"email"`
+		NewPassword string `json:"new_password"`
+	}
+
+	err := json.Unmarshal(info, &request)
+	if err != nil {
+		return false, "无效的 JSON 数据"
+	}
+
+	if request.Email == "" || request.NewPassword == "" {
+		return false, "缺少必需字段"
+	}
+
+	var user model.User
+	err, msg := user.UpdatePassword(request.Email, request.NewPassword)
+	if err != nil {
+		log.Println("更新密码失败:", err)
+		return false, msg
+	}
+
+	return true, "密码更新成功"
+}
+
+// getUserInfo 获取用户信息
+func getUserInfo(userID string) (bool, string, *model.User) {
+	var user model.User
+	err, msg, user := user.GetUserInfo(userID)
+	if err != nil {
+		log.Println("获取用户信息失败:", err)
+		return false, msg, nil
+	}
+
+	return true, "获取用户信息成功", user
+}
+
+// updateUserInfo 更新用户信息
+func updateUserInfo(info json.RawMessage) (bool, string) {
+	var user model.User
+	err := json.Unmarshal(info, &user)
+	if err != nil {
+		return false, "无效的 JSON 数据"
+	}
+
+	if user.UserID == 0 {
+		return false, "缺少用户ID"
+	}
+
+	err, msg := user.UpdateUserInfo()
+	if err != nil {
+		log.Println("更新用户信息失败:", err)
+		return false, msg
+	}
+
+	return true, "个人信息更新成功"
+}*/
