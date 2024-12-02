@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-	"log"
 
 	"github.com/gin-gonic/gin"
 
@@ -49,7 +48,10 @@ func Register(c *gin.Context) {
 	}
 	//默认头像地址
 	avatar_0 := "postImage/image0.png"
-	var url = scripts.GetUrl(avatar_0)
+	err_u, url := scripts.GetUrl(avatar_0)
+	if err_u != nil {
+		c.JSON(400, gin.H{"isok": false, "failreason": url})
+	}
 	c.JSON(200, gin.H{"isok": true, "uid": userid, "uimage": url})
 }
 
@@ -134,6 +136,10 @@ func Login(c *gin.Context) {
 	if storedPassword != requestData.Password {
 		c.JSON(http.StatusUnauthorized, gin.H{"isok": false, "failreason": "密码错误"})
 		return
+	}
+	err, Avatar = scripts.GetUrl(Avatar)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"isok": false, "failreason": Avatar})
 	}
 	c.JSON(http.StatusOK, gin.H{"isok": true, "uid": userID, "uname": userName, "uimage": Avatar})
 }
@@ -234,7 +240,6 @@ func UpdatePersonalSettings(c *gin.Context) {
 	c.JSON(200, gin.H{"isok": true})
 }
 
-
 /*
 // 找回密码
 func ForgotPassword(c *gin.Context) {
@@ -290,9 +295,9 @@ func GetPersonalInfo(c *gin.Context) {
     defer db.Close()
 
     row := db.QueryRow(`
-        SELECT user_id, uname, phone, email, address, avatar, signature, birthday 
+        SELECT user_id, uname, phone, email, address, avatar, signature, birthday
         FROM users WHERE user_id = ?`, userID)
-    
+
     var userName, phone, email, address, avatar, signature string
     var birthday string
     var uid int
@@ -342,8 +347,8 @@ func UpdatePersonalInfo(c *gin.Context) {
     defer db.Close()
 
     stmt, err := db.Prepare(`
-        UPDATE users 
-        SET uname = ?, phone = ?, email = ?, address = ?, avatar = ?, signature = ?, birthday = ? 
+        UPDATE users
+        SET uname = ?, phone = ?, email = ?, address = ?, avatar = ?, signature = ?, birthday = ?
         WHERE user_id = ?`)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "准备更新失败"})
@@ -351,13 +356,13 @@ func UpdatePersonalInfo(c *gin.Context) {
     }
 
     _, err = stmt.Exec(
-        updateData.UserName, 
-        updateData.Phone, 
-        updateData.Email, 
-        updateData.Address, 
-        updateData.Avatar, 
-        updateData.Signature, 
-        updateData.Birthday, 
+        updateData.UserName,
+        updateData.Phone,
+        updateData.Email,
+        updateData.Address,
+        updateData.Avatar,
+        updateData.Signature,
+        updateData.Birthday,
         userID)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "更新失败"})

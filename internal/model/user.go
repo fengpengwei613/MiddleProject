@@ -4,9 +4,6 @@ import (
 	"middleproject/internal/repository"
 	"strconv"
 	"time"
-	"database/sql"
-	"errors"
-	
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -79,9 +76,6 @@ type LoginRequest struct {
 	Userid   int    `json:"user_id"`
 	Password string `json:"password"`
 }
-
-
-
 
 /*
 //更新密码
