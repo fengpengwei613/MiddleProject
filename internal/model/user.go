@@ -78,6 +78,21 @@ type LoginRequest struct {
 }
 
 /*
+type ForgotPasswordRequest struct {
+    Email string `json:"email" binding:"required,email"` // 邮箱地址
+}
+
+type UpdatePersonalInfoRequest struct {
+    UserName  string `json:"userName" binding:"required"`
+    Phone     string `json:"phone" binding:"required"`
+    Email     string `json:"email" binding:"required,email"`
+    Address   string `json:"address"`
+    Avatar    string `json:"avatar"`
+    Signature string `json:"signature"`
+    Birthday  string `json:"birthday"`
+}
+
+
 //更新密码
 func (u *User) UpdatePassword(email, newPassword string) (error, string) {
 	db, err := repository.Connect()
