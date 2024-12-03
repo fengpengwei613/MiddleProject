@@ -1,6 +1,8 @@
 package model
 
 import (
+	"database/sql"
+	"errors"
 	"middleproject/internal/repository"
 	"strconv"
 	"time"
@@ -77,23 +79,21 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
-/*
 type ForgotPasswordRequest struct {
-    Email string `json:"email" binding:"required,email"` // 邮箱地址
+	Email string `json:"email" binding:"required,email"` // 邮箱地址
 }
 
 type UpdatePersonalInfoRequest struct {
-    UserName  string `json:"userName" binding:"required"`
-    Phone     string `json:"phone" binding:"required"`
-    Email     string `json:"email" binding:"required,email"`
-    Address   string `json:"address"`
-    Avatar    string `json:"avatar"`
-    Signature string `json:"signature"`
-    Birthday  string `json:"birthday"`
+	UserName  string `json:"userName" binding:"required"`
+	Phone     string `json:"phone" binding:"required"`
+	Email     string `json:"email" binding:"required,email"`
+	Address   string `json:"address"`
+	Avatar    string `json:"avatar"`
+	Signature string `json:"signature"`
+	Birthday  string `json:"birthday"`
 }
 
-
-//更新密码
+// 更新密码
 func (u *User) UpdatePassword(email, newPassword string) (error, string) {
 	db, err := repository.Connect()
 	if err != nil {
@@ -153,4 +153,4 @@ func (u *User) UpdateUserInfo() (error, string) {
 	}
 
 	return nil, "个人信息更新成功"
-}*/
+}

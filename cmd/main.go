@@ -41,6 +41,14 @@ func main() {
 	//更新个人设置接口
 	r.POST("/api/persetting/edit", service.UpdatePersonalSettings)
 
+	//忘记密码
+	r.POST("/api/forget", service.ForgotPassword)
+
+	//获取个人信息
+	r.GET("/api/perinfo", service.GetPersonalInfo)
+	//修改个人信息
+	r.POST("/api/perinfo/edit", service.UpdatePersonalInfo)
+
 	// 启动 HTTP 服务器
 	if err := r.Run(":8080"); err != nil {
 		fmt.Println("启动服务器失败:", err)
