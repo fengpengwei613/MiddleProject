@@ -242,39 +242,58 @@ func UpdatePersonalSettings(c *gin.Context) {
 
 // 找回密码
 func ForgotPassword(c *gin.Context) {
-	var request model.ForgotPasswordRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+	var requestData model.ResetPasswordReq
+	if err := c.ShouldBindJSON(&requestData); err != nil {
+		c.JSON(400, gin.H{"isok": false, "failreason": "绑定请求数据失败", "uid": "", "uname": "", "uimage": ""})
+		return
+	}
+	if !repository.VerifyCode(requestData.Mail, requestData.Code) {
+		c.JSON(400, gin.H{"isok": false, "failreason": "验证码错误", "uid": "", "uname": "", "uimage": ""})
+		return
+	}
+	user, err := updatePassword(requestData.Mail, requestData.Password)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(404, gin.H{"isok": false, "failreason": "用户不存在", "uid": "", "uname": "", "uimage": ""})
+			return
+		}
+		c.JSON(500, gin.H{"isok": false, "failreason": "更新失败", "uid": "", "uname": "", "uimage": ""})
 		return
 	}
 
+	c.JSON(200, gin.H{
+		"isok":       true,
+		"failreason": "",
+		"uid":        user.UserID,
+		"uname":      user.Uname,
+	})
+}
+
+// 更新用户密码
+func updatePassword(mail string, newPassword string) (*model.User, error) {
 	db, err := repository.Connect()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
-		return
+		return nil, err
 	}
 	defer db.Close()
 
-	var userID int
-	err = db.QueryRow("SELECT user_id FROM users WHERE email = ?", request.Email).Scan(&userID)
+	stmt, err := db.Prepare("UPDATE users SET password = ? WHERE email = ?")
 	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"isok": false, "failreason": "邮箱未注册"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库查询失败"})
-		}
-		return
+		return nil, err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(newPassword, mail)
+	if err != nil {
+		return nil, err
+	}
+	var user model.User
+	row := db.QueryRow("SELECT user_id, uname, avatar FROM users WHERE email = ?", mail)
+	if err := row.Scan(&user.UserID, &user.Uname); err != nil {
+		return nil, err
 	}
 
-	requestData := map[string]string{
-		"mail": request.Email,
-	}
-	c.Set("type", "find")
-	c.Set("requestData", requestData)
-
-	SendMailInterface(c)
-
-	c.JSON(http.StatusOK, gin.H{"isok": true, "message": "验证码已发送到您的邮箱"})
+	return &user, nil
 }
 
 // 获取个人信息
