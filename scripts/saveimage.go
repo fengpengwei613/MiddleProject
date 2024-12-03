@@ -3,6 +3,7 @@ package scripts
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
@@ -31,6 +32,13 @@ func UploadImage(base64Str string, filename string) (error, string) {
 	//定义文件路径
 	objectKey := "postImage/" + filename
 	//将前端传送的base64字符串解码成bytes数组
+	fmt.Println(base64Str)
+	for i := 0; i < len(base64Str); i++ {
+		if base64Str[i] == ',' {
+			base64Str = base64Str[i+1:]
+			break
+		}
+	}
 	data, err_base64 := base64.StdEncoding.DecodeString(base64Str)
 	reader := bytes.NewReader(data)
 	if err_base64 != nil {
