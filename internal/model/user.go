@@ -79,8 +79,10 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
-type ForgotPassword struct {
-	Email string `json:"email" binding:"required,email"` // 邮箱地址
+type ResetPasswordReq struct {
+	Password string `json:"password" binding:"required"`
+	Mail     string `json:"mail" binding:"required,email"`
+	Code     string `json:"code" binding:"required"`
 }
 
 type UpdatePersonalInfoRequest struct {
