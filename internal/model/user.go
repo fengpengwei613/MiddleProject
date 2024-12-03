@@ -79,7 +79,7 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
-type ForgotPasswordRequest struct {
+type ForgotPassword struct {
 	Email string `json:"email" binding:"required,email"` // 邮箱地址
 }
 
