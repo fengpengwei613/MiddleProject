@@ -130,8 +130,10 @@ func Login(c *gin.Context) {
 	if info != nil {
 		if info == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"isok": false, "failreason": "用户不存在"})
+			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库查询失败"})
+		return
 	}
 	if storedPassword != requestData.Password {
 		c.JSON(http.StatusUnauthorized, gin.H{"isok": false, "failreason": "密码错误"})

@@ -1,4 +1,5 @@
 package scripts
+
 import (
 	"fmt"
 	"middleproject/internal/repository"
@@ -7,16 +8,21 @@ import (
 )
 
 func SendEmail(to string, subject string, body string) string {
-    db, err := repository.Connect()
+	db_link, err := repository.Connect()
 	if err != nil {
 		return "数据库连接失败"
 	}
-	defer db.Close()
-    query_s := "SELECT email FROM Users WHERE email = ?"
+	defer db_link.Close()
+	db, err_tx := db_link.Begin()
+	if err_tx != nil {
+		return "事务开启失败"
+	}
+	query_s := "SELECT email FROM Users WHERE email = ?"
 	row := db.QueryRow(query_s, to)
 	var email string
 	err = row.Scan(&email)
 	if err == nil {
+		db.Rollback()
 		return "邮箱已经注册"
 	}
 	// 发送方的邮箱和密码
@@ -33,20 +39,26 @@ func SendEmail(to string, subject string, body string) string {
 	// 发送邮件
 	err = smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{to}, message)
 	if err != nil {
+		db.Rollback()
 		return "邮件发送失败"
 	}
-	
+
 	query := "INSERT INTO verificationcodes values(?,?,?)"
 	//5分钟有效期
 	currentTime := time.Now()
-    chinaTime := currentTime.Add(8 * time.Hour)
+	chinaTime := currentTime.Add(8 * time.Hour)
 	newTime := chinaTime.Add(5 * time.Minute)
 
 	_, err = db.Exec(query, to, body, newTime)
 	if err != nil {
+		db.Rollback()
 		return "验证码存储失败"
 	}
 	fmt.Println("邮件发送成功")
+	err_commit := db.Commit()
+	if err_commit != nil {
+		db.Rollback()
+		return "事务提交失败"
+	}
 	return "成功"
 }
-

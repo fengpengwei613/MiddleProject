@@ -25,37 +25,43 @@ type User struct {
 }
 
 func (u *User) CreateUser() (error, string, string) {
-	db, err_conn := repository.Connect()
+	db_link, err_conn := repository.Connect()
 	if err_conn != nil {
 		return err_conn, "创建新用户连接数据库失败", "0"
 	}
-	defer db.Close()
+	defer db_link.Close()
+	db, err_tx := db_link.Begin()
+	if err_tx != nil {
+		return err_tx, "事务开启失败", "0"
+	}
 	//检查邮箱是否已经注册
 	query := "SELECT email FROM Users WHERE email = ?"
 	row := db.QueryRow(query, u.Email)
 	var email string
 	err_check := row.Scan(&email)
 	if err_check == nil {
+		db.Rollback()
 		return err_check, "邮箱已经注册", "0"
 	}
-	query = `INSERT INTO Users (Uname, email, password)
-              VALUES (?, ?, ?)`
+	query = `INSERT INTO Users (Uname, email, password, avatar)
+              VALUES (?, ?, ?, ?)`
 
-	result, err_insert := db.Exec(query, u.Uname, u.Email, u.Password)
+	result, err_insert := db.Exec(query, u.Uname, u.Email, u.Password,"postImage/image0.png")
 	if err_insert != nil {
+		db.Rollback()
 		return err_insert, "sql语句用户创建失败", "0"
 	}
 	userID, err_id := result.LastInsertId()
 	if err_id != nil {
-		query_del := "DELETE FROM Users WHERE email = ?"
-		_, err_del := db.Exec(query_del, u.Email)
-		if err_del != nil {
-			return err_del, "或许新用户id失败,同时删除新用户失败", "0"
-		}
+		db.Rollback()
 		return err_id, "获取新用户ID失败", "0"
 	}
 	u.UserID = int(userID)
-
+	err_commit := db.Commit()
+	if err_commit != nil {
+		db.Rollback()
+		return err_commit, "事务提交失败", "0"
+	}
 	return nil, "注册成功", strconv.Itoa(int(userID))
 }
 

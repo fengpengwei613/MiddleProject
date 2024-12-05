@@ -30,6 +30,11 @@ func main() {
 		fmt.Println("收到评论请求")
 		service.PublishComment(c)
 	})
+	//发回复
+	r.POST("/api/newreply", func(c *gin.Context) {
+		fmt.Println("收到回复请求")
+		service.PublishReply(c)
+	})
 	//登录
 	r.POST("/api/login", func(c *gin.Context) {
 		fmt.Println("收到登录请求")
