@@ -2,7 +2,6 @@ package service
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"middleproject/internal/model"
 	"middleproject/internal/repository"
@@ -20,7 +19,7 @@ type Advpost struct {
 	Uid     string   `json :"uid"`
 	Uimge   string   `json:"uimage"`
 	Time    string   `json:"time"`
-	subject []string `json:"subject"`
+	Subject []string `json:"subject"`
 }
 
 // 推荐逻辑设计
@@ -30,7 +29,7 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 		return nil, err_conn, 0
 	}
 	defer db.Close()
-	var posts []json.RawMessage
+	var posts []Advpost
 	if isattention == "true" {
 		//获取关注的人的帖子，按喜欢数量排序
 		query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=1 order by posts.view_count"
@@ -53,17 +52,16 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 			//post.Time = time.Format("2006-01-02 15:04:05")
 
 			if subject.Valid {
-
-				post.subject = strings.Split(subject.String, ",")
-				fmt.Println(post.subject)
+				str := subject.String
+				post.Subject = strings.Split(str[1:len(str)-1], ",")
+				fmt.Println(post.Subject)
 
 			} else {
 				fmt.Println("111")
 				fmt.Println(subject.String)
 
-				post.subject = []string{"123", "233"}
+				post.Subject = []string{"123", "233"}
 			}
-			post, _ = json.Marshal(post)
 			posts = append(posts, post)
 
 		}
@@ -108,12 +106,13 @@ func GetRecommendPost(c *gin.Context) {
 	var isattention string = c.DefaultQuery("isattion", "false")
 	var uidstr = c.DefaultQuery("uid", "-1")
 	uid, err_uid := strconv.Atoi(uidstr)
-	var posts []json.RawMessage
+	var posts []Advpost
 	if err_uid != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"logs": posts, "totalPages": -1})
 		return
 	}
 	posts, err_adv, num := AdvisePost(uid, page, isattention)
+
 	fmt.Println(posts)
 	if err_adv != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"logs": posts, "totalPages": 0})
