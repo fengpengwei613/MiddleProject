@@ -29,11 +29,10 @@ func Register(c *gin.Context) {
 		c.JSON(400, gin.H{"isok": false, "failreason": "注册绑定请求数据失败"})
 		return
 	}
-	fmt.Println("data:")
+
 	//校验最新验证码
 	query := "SELECT code FROM verificationcodes WHERE email = ? AND expiration > NOW() ORDER BY expiration DESC LIMIT 1"
 	row := db.QueryRow(query, data.Email)
-	fmt.Println(row)
 	var code string
 	err_check := row.Scan(&code)
 	fmt.Println("code:", code)
@@ -42,15 +41,12 @@ func Register(c *gin.Context) {
 		c.JSON(400, gin.H{"isok": false, "failreason": "验证码错误"})
 		return
 	}
-	fmt.Println("data2222:")
 	//添加到数据库
 	err_re, result, userid := data.CreateUser()
-	fmt.Println("userid", userid)
 	if err_re != nil || userid == "0" {
 		c.JSON(500, gin.H{"isok": false, "failreason": result})
 		return
 	}
-	fmt.Println("data33333:")
 	//默认头像地址
 	avatar_0 := "postImage/image0.png"
 	err_u, url := scripts.GetUrl(avatar_0)
@@ -58,7 +54,6 @@ func Register(c *gin.Context) {
 		c.JSON(400, gin.H{"isok": false, "failreason": url})
 		return
 	}
-	fmt.Println("data:4444")
 	c.JSON(200, gin.H{"isok": true, "uid": userid, "uimage": url})
 }
 

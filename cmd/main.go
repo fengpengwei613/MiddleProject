@@ -39,6 +39,11 @@ func main() {
 		fmt.Println("收到获取帖子请求")
 		service.GetRecommendPost(c)
 	})
+	//获取帖子详情
+	r.GET("/api/logs/alog", func(c *gin.Context) {
+		fmt.Println("收到获取帖子详情请求")
+		service.GetPostInfo(c)
+	})
 	//登录
 	r.POST("/api/login", func(c *gin.Context) {
 		fmt.Println("收到登录请求")
