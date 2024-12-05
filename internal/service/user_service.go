@@ -22,12 +22,14 @@ func Register(c *gin.Context) {
 	db, err_conn := repository.Connect()
 	if err_conn != nil {
 		c.JSON(500, gin.H{"isok": false, "failreason": "连接数据库失败"})
+		return
 	}
 	var data model.User
 	if err_bind := c.ShouldBindJSON(&data); err_bind != nil {
 		c.JSON(400, gin.H{"isok": false, "failreason": "注册绑定请求数据失败"})
 		return
 	}
+	fmt.Println("data:")
 	//校验最新验证码
 	query := "SELECT code FROM verificationcodes WHERE email = ? AND expiration > NOW() ORDER BY expiration DESC LIMIT 1"
 	row := db.QueryRow(query, data.Email)
@@ -40,18 +42,23 @@ func Register(c *gin.Context) {
 		c.JSON(400, gin.H{"isok": false, "failreason": "验证码错误"})
 		return
 	}
+	fmt.Println("data2222:")
 	//添加到数据库
 	err_re, result, userid := data.CreateUser()
-	if err_re != nil {
+	fmt.Println("userid", userid)
+	if err_re != nil || userid == "0" {
 		c.JSON(500, gin.H{"isok": false, "failreason": result})
 		return
 	}
+	fmt.Println("data33333:")
 	//默认头像地址
 	avatar_0 := "postImage/image0.png"
 	err_u, url := scripts.GetUrl(avatar_0)
 	if err_u != nil {
 		c.JSON(400, gin.H{"isok": false, "failreason": url})
+		return
 	}
+	fmt.Println("data:4444")
 	c.JSON(200, gin.H{"isok": true, "uid": userid, "uimage": url})
 }
 
@@ -71,6 +78,8 @@ func SendMailInterface(c *gin.Context) {
 	db, err_conn := repository.Connect()
 	if err_conn != nil {
 		c.JSON(500, gin.H{"isok": false, "failreason": "连接数据库失败"})
+		return
+
 	}
 	query := "SELECT email FROM Users WHERE email = ?"
 	row := db.QueryRow(query, mail)

@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"middleproject/internal/repository"
 	"strconv"
 	"time"
@@ -26,6 +27,7 @@ type User struct {
 
 func (u *User) CreateUser() (error, string, string) {
 	db_link, err_conn := repository.Connect()
+	fmt.Println("data12312312")
 	if err_conn != nil {
 		return err_conn, "创建新用户连接数据库失败", "0"
 	}
@@ -34,6 +36,7 @@ func (u *User) CreateUser() (error, string, string) {
 	if err_tx != nil {
 		return err_tx, "事务开启失败", "0"
 	}
+	fmt.Println("data12312312")
 	//检查邮箱是否已经注册
 	query := "SELECT email FROM Users WHERE email = ?"
 	row := db.QueryRow(query, u.Email)
@@ -43,14 +46,16 @@ func (u *User) CreateUser() (error, string, string) {
 		db.Rollback()
 		return err_check, "邮箱已经注册", "0"
 	}
+	fmt.Println("data12312312")
 	query = `INSERT INTO Users (Uname, email, password, avatar)
               VALUES (?, ?, ?, ?)`
 
-	result, err_insert := db.Exec(query, u.Uname, u.Email, u.Password,"postImage/image0.png")
+	result, err_insert := db.Exec(query, u.Uname, u.Email, u.Password, "postImage/image0.png")
 	if err_insert != nil {
 		db.Rollback()
 		return err_insert, "sql语句用户创建失败", "0"
 	}
+	fmt.Println("data12312312")
 	userID, err_id := result.LastInsertId()
 	if err_id != nil {
 		db.Rollback()
@@ -62,6 +67,7 @@ func (u *User) CreateUser() (error, string, string) {
 		db.Rollback()
 		return err_commit, "事务提交失败", "0"
 	}
+	fmt.Println("用户注册成功")
 	return nil, "注册成功", strconv.Itoa(int(userID))
 }
 

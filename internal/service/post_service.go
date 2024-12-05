@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"middleproject/internal/model"
 	"middleproject/internal/repository"
+	"middleproject/scripts"
 	"net/http"
 	"strconv"
 	"strings"
@@ -50,7 +51,11 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 			}
 			post.Uid = strconv.Itoa(uidint)
 			//post.Time = time.Format("2006-01-02 15:04:05")
-
+			var err_url error
+			err_url, post.Uimge = scripts.GetUrl(post.Uimge)
+			if err_url != nil {
+				return posts, err_url, 0
+			}
 			if subject.Valid {
 				str := subject.String
 				post.Subject = strings.Split(str[1:len(str)-1], ",")
