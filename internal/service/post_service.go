@@ -1,13 +1,79 @@
 package service
 
 import (
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"middleproject/internal/model"
+	"middleproject/internal/repository"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
+
+type Advpost struct {
+	PostID  int      `json:"id"`
+	Title   string   `json:"title"`
+	Uname   string   `json:"uname"`
+	Uid     string   `json :"uid"`
+	Uimge   string   `json:"uimage"`
+	Time    string   `json:"time"`
+	subject []string `json:"subject"`
+}
+
+// 推荐逻辑设计
+func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
+	db, err_conn := repository.Connect()
+	if err_conn != nil {
+		return nil, err_conn, 0
+	}
+	defer db.Close()
+	var posts []json.RawMessage
+	if isattention == "true" {
+		//获取关注的人的帖子，按喜欢数量排序
+		query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=1 order by posts.view_count"
+		rows, err_query := db.Query(query)
+		if err_query != nil {
+			fmt.Println(err_query.Error())
+			return posts, err_query, 0
+		}
+		for rows.Next() {
+			var post Advpost
+
+			var subject sql.NullString
+			var uidint int
+			err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject)
+			if err_scan != nil {
+				fmt.Println(err_scan.Error())
+				return posts, err_scan, 0
+			}
+			post.Uid = strconv.Itoa(uidint)
+			//post.Time = time.Format("2006-01-02 15:04:05")
+
+			if subject.Valid {
+
+				post.subject = strings.Split(subject.String, ",")
+				fmt.Println(post.subject)
+
+			} else {
+				fmt.Println("111")
+				fmt.Println(subject.String)
+
+				post.subject = []string{"123", "233"}
+			}
+			post, _ = json.Marshal(post)
+			posts = append(posts, post)
+
+		}
+
+	} else {
+
+	}
+	return posts, nil, len(posts)
+
+}
 
 // 发帖子接口
 func PublishPost(c *gin.Context) {
@@ -31,5 +97,29 @@ func PublishPost(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"isok": true, "logid": idstr})
 	//fmt.Println("返回的消息：", idstr)
+
+}
+
+// 获得推荐帖子
+func GetRecommendPost(c *gin.Context) {
+	var pagestr string = c.DefaultQuery("page", "1")
+	page, _ := strconv.Atoi(pagestr)
+
+	var isattention string = c.DefaultQuery("isattion", "false")
+	var uidstr = c.DefaultQuery("uid", "-1")
+	uid, err_uid := strconv.Atoi(uidstr)
+	var posts []json.RawMessage
+	if err_uid != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"logs": posts, "totalPages": -1})
+		return
+	}
+	posts, err_adv, num := AdvisePost(uid, page, isattention)
+	fmt.Println(posts)
+	if err_adv != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"logs": posts, "totalPages": 0})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"logs": posts, "totalPages": num})
+	return
 
 }
