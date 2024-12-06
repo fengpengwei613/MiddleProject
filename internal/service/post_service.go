@@ -275,6 +275,12 @@ func GetPostInfo(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{})
 		return
 	}
+	var err_url error
+	err_url, post.UImage = scripts.GetUrl(post.UImage)
+	if err_url != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{})
+		return
+	}
 	if Uid_P != -1 {
 		query = "select follower_id from userfollows where follower_id=? and followed_id=?"
 		row = db.QueryRow(query, Uid_P, uid)
