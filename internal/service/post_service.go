@@ -71,10 +71,39 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 		}
 
 	} else {
+		//获取所有的帖子，按喜欢数量排序
+		query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject from posts,users where posts.user_id=users.user_id order by posts.view_count"
+		rows, err_query := db.Query(query)
+		if err_query != nil {
+			fmt.Println(err_query.Error())
+			return posts, err_query, 0
+		}
+		for rows.Next() {
+			var post Advpost
+			var subject sql.NullString
+			var uidint int
+			err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject)
+			if err_scan != nil {
+				fmt.Println(err_scan.Error())
+				return posts, err_scan, 0
+			}
+			post.Uid = strconv.Itoa(uidint)
+			var err_url error
+			err_url, post.Uimge = scripts.GetUrl(post.Uimge)
+			if err_url != nil {
+				return posts, err_url, 0
+			}
+			if subject.Valid {
+				str := subject.String
+				post.Subject = strings.Split(str[1:len(str)-1], ",")
+			} else {
+				post.Subject = []string{}
+			}
+			posts = append(posts, post)
 
+		}
 	}
 	return posts, nil, len(posts)
-
 }
 
 // 发帖子接口
@@ -129,36 +158,36 @@ func GetRecommendPost(c *gin.Context) {
 
 // 帖子内部评论结构体
 type PostComment struct {
-	CID      string `json:"id"`       // 评论id
-	UID      string `json:"uid"`      // 评论者id
-	Content  string `json:"content"`  // 评论内容
-	UName    string `json:"uname"`    // 评论者昵称
-	UImage   string `json:"uimage"`   // 评论者头像
-	Time     string `json:"time"`     // 评论时间
-	IsLike   bool   `json:"islike"`   // 用户是否喜欢此评论
-	Likenum  int    `json:"likenum"`  // 喜欢人数
-	Replynum int    `json:"replynum"` // 回复数量
-	Replies  string `json:"replies"`  // 回复
+	CID      string `json:"id"`
+	UID      string `json:"uid"`
+	Content  string `json:"content"`
+	UName    string `json:"uname"`
+	UImage   string `json:"uimage"`
+	Time     string `json:"time"`
+	IsLike   bool   `json:"islike"`
+	Likenum  int    `json:"likenum"`
+	Replynum int    `json:"replynum"`
+	Replies  string `json:"replies"`
 }
 
 // PostData 定义帖子结构体
 type PostData struct {
-	Title      string        `json:"title"`      // 标题
-	Subjects   []string      `json:"subjects"`   // 主题
-	Content    string        `json:"content"`    // 内容
-	ImageNum   int           `json:"imagenum"`   // 图片数量
-	UID        string        `json:"uid"`        // 发帖人id
-	UName      string        `json:"uname"`      // 发帖人昵称
-	UImage     string        `json:"uimage"`     // 用户头像
-	IsAttion   bool          `json:"isattion"`   // 是否关注此博主
-	Time       string        `json:"time"`       // 发布时间
-	IsLike     bool          `json:"islike"`     // 用户是否喜欢
-	IsCollect  bool          `json:"iscollect"`  // 用户是否收藏
-	ViewNum    int           `json:"viewnum"`    // 浏览量
-	LikeNum    int           `json:"likenum"`    // 喜欢人数
-	CollectNum int           `json:"collectnum"` // 收藏人数
-	ComNum     int           `json:"comnum"`     // 评论数量
-	Comments   []PostComment `json:"comments"`   // 评论
+	Title      string        `json:"title"`
+	Subjects   []string      `json:"subjects"`
+	Content    string        `json:"content"`
+	ImageNum   int           `json:"imagenum"`
+	UID        string        `json:"uid"`
+	UName      string        `json:"uname"`
+	UImage     string        `json:"uimage"`
+	IsAttion   bool          `json:"isattion"`
+	Time       string        `json:"time"`
+	IsLike     bool          `json:"islike"`
+	IsCollect  bool          `json:"iscollect"`
+	ViewNum    int           `json:"viewnum"`
+	LikeNum    int           `json:"likenum"`
+	CollectNum int           `json:"collectnum"`
+	ComNum     int           `json:"comnum"`
+	Comments   []PostComment `json:"comments"`
 }
 
 // 获取评论信息
@@ -214,6 +243,7 @@ func GetCommentInfo(page int, postid int, uid int) (error, []PostComment) {
 		}
 		comments = append(comments, comment)
 	}
+
 	return nil, comments
 
 }
@@ -318,6 +348,13 @@ func GetPostInfo(c *gin.Context) {
 	err_get, post.Comments = GetCommentInfo(1, postid, Uid_P)
 	if err_get != nil {
 		fmt.Println(err_get.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{})
+		return
+	}
+	query = "update posts set view_count=view_count+1 where post_id=?"
+	_, err_update := db.Exec(query, postid)
+	if err_update != nil {
+		fmt.Println(err_update.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{})
 		return
 	}
