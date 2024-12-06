@@ -33,8 +33,8 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 	var posts []Advpost
 	if isattention == "true" {
 		//获取关注的人的帖子，按喜欢数量排序
-		query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=1 order by posts.view_count"
-		rows, err_query := db.Query(query)
+		query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=? order by posts.view_count"
+		rows, err_query := db.Query(query, uid)
 		if err_query != nil {
 			fmt.Println(err_query.Error())
 			return posts, err_query, 0
@@ -58,13 +58,16 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 			if subject.Valid {
 				str := subject.String
 				post.Subject = strings.Split(str[1:len(str)-1], ",")
+				//去除双引号
+				for i := 0; i < len(post.Subject); i++ {
+					post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+				}
 				fmt.Println(post.Subject)
 
 			} else {
-				fmt.Println("111")
-				fmt.Println(subject.String)
 
-				post.Subject = []string{"123", "233"}
+				fmt.Println(subject.String)
+				post.Subject = []string{"无关键字"}
 			}
 			posts = append(posts, post)
 
@@ -96,14 +99,26 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 			if subject.Valid {
 				str := subject.String
 				post.Subject = strings.Split(str[1:len(str)-1], ",")
+				for i := 0; i < len(post.Subject); i++ {
+					post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+				}
 			} else {
-				post.Subject = []string{}
+				post.Subject = []string{"无关键字"}
 			}
 			posts = append(posts, post)
-
 		}
 	}
-	return posts, nil, len(posts)
+	var realPost []Advpost
+	for i := 0; i < len(posts); i++ {
+		if i >= (page-1)*20 && i < page*20 {
+			realPost = append(realPost, posts[i])
+		}
+	}
+	totalpage := len(posts) / 20
+	if len(posts)%20 != 0 {
+		totalpage++
+	}
+	return realPost, nil, totalpage
 }
 
 // 发帖子接口
@@ -359,5 +374,55 @@ func GetPostInfo(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, post)
+
+}
+
+func GetPostImage(c *gin.Context) {
+	postIDstr := c.DefaultQuery("logid", "-1")
+	imagenumstr := c.DefaultQuery("imageid", "-1")
+	postID, err_tran := strconv.Atoi(postIDstr)
+	if err_tran != nil || postID == -1 {
+		c.JSON(http.StatusBadRequest, gin.H{})
+		return
+	}
+	imagenum, err_tran := strconv.Atoi(imagenumstr)
+	if err_tran != nil || imagenum == -1 {
+		c.JSON(http.StatusBadRequest, gin.H{})
+		return
+	}
+	db, err_conn := repository.Connect()
+	if err_conn != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{})
+		return
+	}
+	defer db.Close()
+	query := "select images from posts where post_id=?"
+	row := db.QueryRow(query, postID)
+	var images sql.NullString
+	err_scan := row.Scan(&images)
+	if err_scan != nil {
+		fmt.Println(err_scan.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{})
+		return
+	}
+	if images.Valid {
+		str := images.String
+		str = str[1 : len(str)-1]
+		image := strings.Split(str, ",")
+		if imagenum >= len(image) {
+			c.JSON(http.StatusBadRequest, gin.H{})
+			return
+		}
+		err_url, url := scripts.GetUrl(image[imagenum])
+		if err_url != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"url": url})
+		return
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{})
+		return
+	}
 
 }
