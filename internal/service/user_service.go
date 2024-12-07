@@ -286,10 +286,12 @@ func ForgotPassword(c *gin.Context) {
 		c.JSON(400, gin.H{"isok": false, "failreason": "绑定请求数据失败", "uid": "", "uname": "", "uimage": ""})
 		return
 	}
+
 	if !repository.VerifyCode(requestData.Mail, requestData.Code) {
 		c.JSON(400, gin.H{"isok": false, "failreason": "验证码错误", "uid": "", "uname": "", "uimage": ""})
 		return
 	}
+
 	user, err := updatePassword(requestData.Mail, requestData.Password)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -310,13 +312,27 @@ func ForgotPassword(c *gin.Context) {
 
 // 更新用户密码
 func updatePassword(mail string, newPassword string) (*model.User, error) {
+
 	db, err := repository.Connect()
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
 
-	stmt, err := db.Prepare("UPDATE users SET password = ? WHERE email = ?")
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+
+	stmt, err := tx.Prepare("UPDATE users SET password = ? WHERE email = ?")
 	if err != nil {
 		return nil, err
 	}
@@ -326,8 +342,9 @@ func updatePassword(mail string, newPassword string) (*model.User, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	var user model.User
-	row := db.QueryRow("SELECT user_id, uname, avatar FROM users WHERE email = ?", mail)
+	row := tx.QueryRow("SELECT user_id, uname, avatar FROM users WHERE email = ?", mail)
 	if err := row.Scan(&user.UserID, &user.Uname); err != nil {
 		return nil, err
 	}
