@@ -67,6 +67,12 @@ func main() {
 	r.GET("/api/perinfo", service.GetPersonalInfo)
 	//修改个人信息
 	r.POST("/api/perinfo/edit", service.UpdatePersonalInfo)
+	//点赞帖子
+	r.POST("/api/likelog", service.LikePost)
+	//收藏帖子
+	r.POST("/api/collectlog", service.CollectPost)
+	//喜欢评论
+	r.POST("/api/likecomment", service.LikeComment)
 
 	// 启动 HTTP 服务器
 	if err := r.Run(":8080"); err != nil {

@@ -3,6 +3,7 @@ package model
 //package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"middleproject/internal/repository"
 	"middleproject/scripts"
@@ -32,7 +33,7 @@ func (p *Post) AddPost() (error, string, string) {
 		return err_conn, "发帖函数连接数据库失败", "0"
 	}
 	defer db_link.Close()
-	db ,err_tx := db_link.Begin()
+	db, err_tx := db_link.Begin()
 	if err_tx != nil {
 		return err_tx, "事务开启失败", "0"
 	}
@@ -87,7 +88,7 @@ func (p *Post) AddPost() (error, string, string) {
 		db.Rollback()
 		return err_sql2, "sql错误,更新Url失败", "0"
 	}
-	err_commit :=db.Commit()
+	err_commit := db.Commit()
 	if err_commit != nil {
 		db.Rollback()
 		return err_commit, "提交事务失败", "0"
@@ -105,7 +106,7 @@ func LikePost(userID, postID int) (error, string) {
 	defer db_link.Close()
 
 	var count int
-	query_check_like := "SELECT COUNT(*) FROM post_likes WHERE post_id = ? AND user_id = ?"
+	query_check_like := "SELECT COUNT(*) FROM postlikes WHERE post_id = ? AND  liker_id = ?"
 	err := db_link.QueryRow(query_check_like, postID, userID).Scan(&count)
 	if err != nil && err != sql.ErrNoRows {
 		return err, "查询点赞记录失败"
@@ -113,7 +114,7 @@ func LikePost(userID, postID int) (error, string) {
 
 	// 取消点赞
 	if count > 0 {
-		_, err_del := db_link.Exec("DELETE FROM post_likes WHERE post_id = ? AND user_id = ?", postID, userID)
+		_, err_del := db_link.Exec("DELETE FROM postlikes WHERE post_id = ? AND liker_id = ?", postID, userID)
 		if err_del != nil {
 			return err_del, "取消点赞失败"
 		}
@@ -123,7 +124,7 @@ func LikePost(userID, postID int) (error, string) {
 		}
 		return nil, "取消点赞成功"
 	} else {
-		_, err_add := db_link.Exec("INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)", postID, userID)
+		_, err_add := db_link.Exec("INSERT INTO postlikes (post_id, liker_id) VALUES (?, ?)", postID, userID)
 		if err_add != nil {
 			return err_add, "点赞失败"
 		}
@@ -144,7 +145,7 @@ func CollectPost(userID, postID int) (error, string) {
 	defer db_link.Close()
 
 	var count int
-	query_check_favorite := "SELECT COUNT(*) FROM post_favorites WHERE post_id = ? AND user_id = ?"
+	query_check_favorite := "SELECT COUNT(*) FROM postfavorites WHERE post_id = ? AND user_id = ?"
 	err := db_link.QueryRow(query_check_favorite, postID, userID).Scan(&count)
 	if err != nil && err != sql.ErrNoRows {
 		return err, "查询收藏记录失败"
@@ -152,7 +153,7 @@ func CollectPost(userID, postID int) (error, string) {
 
 	// 取消收藏
 	if count > 0 {
-		_, err_del := db_link.Exec("DELETE FROM post_favorites WHERE post_id = ? AND user_id = ?", postID, userID)
+		_, err_del := db_link.Exec("DELETE FROM postfavorites WHERE post_id = ? AND user_id = ?", postID, userID)
 		if err_del != nil {
 			return err_del, "取消收藏失败"
 		}
@@ -162,7 +163,7 @@ func CollectPost(userID, postID int) (error, string) {
 		}
 		return nil, "取消收藏成功"
 	} else {
-		_, err_add := db_link.Exec("INSERT INTO post_favorites (post_id, user_id) VALUES (?, ?)", postID, userID)
+		_, err_add := db_link.Exec("INSERT INTO postfavorites (post_id, user_id) VALUES (?, ?)", postID, userID)
 		if err_add != nil {
 			return err_add, "收藏失败"
 		}
@@ -183,7 +184,7 @@ func LikeComment(userID, commentID int) (error, string) {
 	defer db_link.Close()
 
 	var count int
-	query_check_like := "SELECT COUNT(*) FROM comment_likes WHERE comment_id = ? AND user_id = ?"
+	query_check_like := "SELECT COUNT(*) FROM commentlikes WHERE comment_id = ? AND liker_id = ?"
 	err := db_link.QueryRow(query_check_like, commentID, userID).Scan(&count)
 	if err != nil && err != sql.ErrNoRows {
 		return err, "查询点赞记录失败"
@@ -191,7 +192,7 @@ func LikeComment(userID, commentID int) (error, string) {
 
 	// 取消点赞
 	if count > 0 {
-		_, err_del := db_link.Exec("DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?", commentID, userID)
+		_, err_del := db_link.Exec("DELETE FROM commentlikes WHERE comment_id = ? AND liker_id = ?", commentID, userID)
 		if err_del != nil {
 			return err_del, "取消点赞失败"
 		}
@@ -201,7 +202,7 @@ func LikeComment(userID, commentID int) (error, string) {
 		}
 		return nil, "取消点赞成功"
 	} else {
-		_, err_add := db_link.Exec("INSERT INTO comment_likes (comment_id, user_id) VALUES (?, ?)", commentID, userID)
+		_, err_add := db_link.Exec("INSERT INTO commentlikes (comment_id, liker_id) VALUES (?, ?)", commentID, userID)
 		if err_add != nil {
 			return err_add, "点赞失败"
 		}

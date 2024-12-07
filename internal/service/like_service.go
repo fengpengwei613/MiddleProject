@@ -1,10 +1,11 @@
 package service
 
 import (
-	"github.com/gin-gonic/gin"
 	"middleproject/internal/model"
 	"net/http"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 // 点赞帖子
@@ -72,7 +73,7 @@ func LikeComment(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的用户ID"})
 		return
 	}
-	commentidstr := c.DefaultQuery("commentid", "-1")
+	commentidstr := c.DefaultQuery("comid", "-1")
 	commentid, err_cid := strconv.Atoi(commentidstr)
 	if err_cid != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的评论ID"})

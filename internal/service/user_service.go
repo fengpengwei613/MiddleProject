@@ -7,6 +7,7 @@ import (
 	"middleproject/internal/model"
 	"middleproject/internal/repository"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -107,6 +108,13 @@ func SendMailInterface(c *gin.Context) {
 
 }
 
+// 辅助函数：判断是否是邮箱格式
+func isEmailFormat(input string) bool {
+	emailRegex := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	matched, _ := regexp.MatchString(emailRegex, input)
+	return matched
+}
+
 // 用户登录函数实现
 func Login(c *gin.Context) {
 	var requestData model.LoginRequest
@@ -122,14 +130,21 @@ func Login(c *gin.Context) {
 		return
 	}
 	defer db.Close()
-	// 检查用户名和密码
 
-	row := db.QueryRow("SELECT user_id,password,uname,avatar FROM users WHERE user_id = ?", requestData.Userid)
 	var storedPassword string
-	var userID int
+	var userID string
 	var userName string
 	var Avatar string
 
+	isEmail := isEmailFormat(requestData.Userid)
+	var query string
+	if isEmail {
+		query = "SELECT user_id, password, uname, avatar FROM users WHERE email = ?"
+	} else {
+		query = "SELECT user_id, password, uname, avatar FROM users WHERE user_id = ?"
+	}
+
+	row := db.QueryRow(query, requestData.Userid)
 	info := row.Scan(&userID, &storedPassword, &userName, &Avatar)
 	if info != nil {
 		if info == sql.ErrNoRows {
@@ -204,8 +219,15 @@ func UpdatePersonalSettings(c *gin.Context) {
 		return
 	}
 	defer db.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+	    c.JSON(http.StatusInternalServerError, gin.H{"error": "数据库事务开始失败"})
+		return
+	}
 	var newsetting model.UpdatePersonalSettings
 	if err := c.ShouldBindJSON(&newsetting); err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的 JSON 数据"})
 		return
 	}
@@ -216,9 +238,11 @@ func UpdatePersonalSettings(c *gin.Context) {
 	err2 := db.QueryRow(checkUserQuery, newsetting.UserId).Scan(&userID)
 
 	if err2 == sql.ErrNoRows {
+		tx.Rollback()
 		c.JSON(404, gin.H{"isok": false, "failreason": "用户不存在"})
 		return
 	} else if err != nil {
+		tx.Rollback()
 		c.JSON(500, gin.H{"isok": false, "failreason": "查询失败"})
 		return
 	}
@@ -231,6 +255,7 @@ func UpdatePersonalSettings(c *gin.Context) {
 		"showmail":    true,
 	}
 	if !validColumns[newsetting.Type] {
+		tx.Rollback()
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的列名"})
 		return
 	}
@@ -240,9 +265,15 @@ func UpdatePersonalSettings(c *gin.Context) {
 	//SQL更新语句
 	_, err1 := db.Exec(updateQuery, newsetting.Value, newsetting.UserId)
 	if err1 != nil {
+		tx.Rollback()
 		c.JSON(500, gin.H{"isok": false, "failreason": "更新失败"})
 		return
 	}
+	err=tx.Commit()
+    if err != nil {
+        c.JSON(500, gin.H{"isok": false, "failreason": "事务提交失败"})
+		return
+    }
 	c.JSON(200, gin.H{"isok": true})
 }
 
