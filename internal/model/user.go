@@ -84,7 +84,7 @@ type UpdatePersonalSettings struct {
 
 // LoginRequest 登录请求结构体
 type LoginRequest struct {
-	Userid   string `json:"user_id"`
+	Userid   string `json:"uid"`
 	Password string `json:"password"`
 }
 

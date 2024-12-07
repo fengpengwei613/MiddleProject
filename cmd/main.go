@@ -73,6 +73,12 @@ func main() {
 	r.POST("/api/collectlog", service.CollectPost)
 	//喜欢评论
 	r.POST("/api/likecomment", service.LikeComment)
+	//关注用户
+	r.POST("/api/attionusr", service.HandleFollowAction)
+	//喜欢回复
+	r.POST("/api/likereply", service.LikeReply)
+	//举报接口
+	r.POST("/api/report", service.HandleReport)
 
 	// 启动 HTTP 服务器
 	if err := r.Run(":8080"); err != nil {

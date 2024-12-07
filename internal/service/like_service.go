@@ -92,3 +92,7 @@ func LikeComment(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"isok": true, "message": msg})
 }
+
+
+
+

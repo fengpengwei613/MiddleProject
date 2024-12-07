@@ -122,7 +122,7 @@ func Login(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
 		return
 	}
-
+	fmt.Println(requestData)
 	db, err := repository.Connect()
 
 	if err != nil {
@@ -146,6 +146,7 @@ func Login(c *gin.Context) {
 
 	row := db.QueryRow(query, requestData.Userid)
 	info := row.Scan(&userID, &storedPassword, &userName, &Avatar)
+
 	if info != nil {
 		if info == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"isok": false, "failreason": "用户不存在"})
@@ -222,12 +223,13 @@ func UpdatePersonalSettings(c *gin.Context) {
 
 	tx, err := db.Begin()
 	if err != nil {
-	    c.JSON(http.StatusInternalServerError, gin.H{"error": "数据库事务开始失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "数据库事务开始失败"})
 		return
 	}
 	var newsetting model.UpdatePersonalSettings
 	if err := c.ShouldBindJSON(&newsetting); err != nil {
 		tx.Rollback()
+		//fmt.Println(err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的 JSON 数据"})
 		return
 	}
@@ -269,11 +271,11 @@ func UpdatePersonalSettings(c *gin.Context) {
 		c.JSON(500, gin.H{"isok": false, "failreason": "更新失败"})
 		return
 	}
-	err=tx.Commit()
-    if err != nil {
-        c.JSON(500, gin.H{"isok": false, "failreason": "事务提交失败"})
+	err = tx.Commit()
+	if err != nil {
+		c.JSON(500, gin.H{"isok": false, "failreason": "事务提交失败"})
 		return
-    }
+	}
 	c.JSON(200, gin.H{"isok": true})
 }
 
