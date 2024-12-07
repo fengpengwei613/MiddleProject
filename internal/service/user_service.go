@@ -351,14 +351,43 @@ func GetPersonalInfo(c *gin.Context) {
 	defer db.Close()
 
 	row := db.QueryRow(`
-        SELECT user_id, uname, phone, email, address, avatar, signature, birthday
+        SELECT user_id, uname, uimage, phone, mail, address, birthday, regtime, sex, 
+               introduction, schoolname, major, edutime, edulevel, companyname, 
+               positionname, industry, interests, likenum, attionnum, isattion, fansnum
         FROM users WHERE user_id = ?`, userID)
 
-	var userName, phone, email, address, avatar, signature string
-	var birthday string
-	var uid int
+	var userInfo struct {
+		UserID       int      `json:"userID"`
+		UserName     string   `json:"userName"`
+		UImage       string   `json:"uimage"`
+		Phone        string   `json:"phone"`
+		Mail         string   `json:"mail"`
+		Address      string   `json:"address"`
+		Birthday     string   `json:"birthday"`
+		RegTime      string   `json:"regtime"`
+		Sex          string   `json:"sex"`
+		Introduction string   `json:"introduction"`
+		SchoolName   string   `json:"schoolname"`
+		Major        string   `json:"major"`
+		EduTime      string   `json:"edutime"`
+		EduLevel     string   `json:"edulevel"`
+		CompanyName  string   `json:"companyname"`
+		PositionName string   `json:"positionname"`
+		Industry     string   `json:"industry"`
+		Interests    []string `json:"interests"`
+		LikeNum      string   `json:"likenum"`
+		AttionNum    string   `json:"attionnum"`
+		IsAttion     string   `json:"isattion"`
+		FansNum      string   `json:"fansnum"`
+	}
+	err = row.Scan(
+		&userInfo.UserID, &userInfo.UserName, &userInfo.UImage, &userInfo.Phone, &userInfo.Mail,
+		&userInfo.Address, &userInfo.Birthday, &userInfo.RegTime, &userInfo.Sex,
+		&userInfo.Introduction, &userInfo.SchoolName, &userInfo.Major, &userInfo.EduTime,
+		&userInfo.EduLevel, &userInfo.CompanyName, &userInfo.PositionName, &userInfo.Industry,
+		&userInfo.Interests, &userInfo.LikeNum, &userInfo.AttionNum, &userInfo.IsAttion, &userInfo.FansNum,
+	)
 
-	err = row.Scan(&uid, &userName, &phone, &email, &address, &avatar, &signature, &birthday)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"isok": false, "failreason": "用户不存在"})
@@ -368,50 +397,155 @@ func GetPersonalInfo(c *gin.Context) {
 		return
 	}
 
+	if len(userInfo.Interests) == 0 {
+		userInfo.Interests = []string{}
+	}
+
+	if userInfo.UImage != "" {
+		userInfo.UImage = strings.Trim(userInfo.UImage, "[]")
+		images := strings.Split(userInfo.UImage, ",")
+
+		if len(images) > 0 {
+			err, url := scripts.GetUrl(images[0])
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "获取头像失败"})
+				return
+			}
+			userInfo.UImage = url
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"isok":      true,
-		"userID":    uid,
-		"userName":  userName,
-		"phone":     phone,
-		"email":     email,
-		"address":   address,
-		"avatar":    avatar,
-		"signature": signature,
-		"birthday":  birthday,
+		"isok":         true,
+		"userID":       userInfo.UserID,
+		"userName":     userInfo.UserName,
+		"uimage":       userInfo.UImage,
+		"phone":        userInfo.Phone,
+		"mail":         userInfo.Mail,
+		"address":      userInfo.Address,
+		"birthday":     userInfo.Birthday,
+		"regtime":      userInfo.RegTime,
+		"sex":          userInfo.Sex,
+		"introduction": userInfo.Introduction,
+		"schoolname":   userInfo.SchoolName,
+		"major":        userInfo.Major,
+		"edutime":      userInfo.EduTime,
+		"edulevel":     userInfo.EduLevel,
+		"companyname":  userInfo.CompanyName,
+		"positionname": userInfo.PositionName,
+		"industry":     userInfo.Industry,
+		"interests":    userInfo.Interests,
+		"likenum":      userInfo.LikeNum,
+		"attionnum":    userInfo.AttionNum,
+		"isattion":     userInfo.IsAttion,
+		"fansnum":      userInfo.FansNum,
 	})
 }
 
-// 更新个人信息
 func UpdatePersonalInfo(c *gin.Context) {
-	var updateData model.UpdatePersonalInfoRequest
+
+	db, err := repository.Connect()
+	if err != nil {
+
+		c.JSON(200, gin.H{
+			"isok":       false,
+			"failreason": "数据库连接失败",
+		})
+		return
+	}
+	defer db.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		c.JSON(200, gin.H{
+			"isok":       false,
+			"failreason": "数据库事务开始失败",
+		})
+		return
+	}
+
+	var updateData struct {
+		UserName  string   `json:"userName"`
+		Phone     string   `json:"phone"`
+		Email     string   `json:"email"`
+		Address   string   `json:"address"`
+		Avatar    string   `json:"avatar"`
+		Signature string   `json:"signature"`
+		Birthday  string   `json:"birthday"`
+		Interests []string `json:"interests"`
+	}
+
 	if err := c.ShouldBindJSON(&updateData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		tx.Rollback()
+		c.JSON(200, gin.H{
+			"isok":       false,
+			"failreason": "无效的请求数据",
+		})
 		return
 	}
 
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"isok": false, "failreason": "未授权"})
+		tx.Rollback()
+		c.JSON(200, gin.H{
+			"isok":       false,
+			"failreason": "未授权",
+		})
 		return
 	}
 
-	db, err := repository.Connect()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+	var dbUserID string
+	checkUserQuery := "SELECT user_id FROM users WHERE user_id = ?"
+	err2 := db.QueryRow(checkUserQuery, userID).Scan(&dbUserID)
+	if err2 == sql.ErrNoRows {
+		tx.Rollback()
+		c.JSON(200, gin.H{
+			"isok":       false,
+			"failreason": "用户不存在",
+		})
+		return
+	} else if err2 != nil {
+		tx.Rollback()
+		c.JSON(200, gin.H{
+			"isok":       false,
+			"failreason": "查询失败",
+		})
 		return
 	}
-	defer db.Close()
 
-	stmt, err := db.Prepare(`
-        UPDATE users
-        SET uname = ?, phone = ?, email = ?, address = ?, avatar = ?, signature = ?, birthday = ?
-        WHERE user_id = ?`)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "准备更新失败"})
+	validColumns := map[string]bool{
+		"userName":  true,
+		"phone":     true,
+		"email":     true,
+		"address":   true,
+		"avatar":    true,
+		"signature": true,
+		"birthday":  true,
+		"interests": true,
+	}
+
+	if !validColumns["userName"] || !validColumns["phone"] || !validColumns["email"] {
+		tx.Rollback()
+		c.JSON(200, gin.H{
+			"isok":       false,
+			"failreason": "无效的字段",
+		})
 		return
 	}
 
-	_, err = stmt.Exec(
+	var interests interface{}
+	if len(updateData.Interests) == 0 {
+		interests = nil
+	} else {
+		interests = updateData.Interests
+	}
+
+	updateQuery := `
+		UPDATE users
+		SET uname = ?, phone = ?, email = ?, address = ?, avatar = ?, signature = ?, birthday = ?, interests = ?
+		WHERE user_id = ?`
+
+	_, err = tx.Exec(updateQuery,
 		updateData.UserName,
 		updateData.Phone,
 		updateData.Email,
@@ -419,11 +553,31 @@ func UpdatePersonalInfo(c *gin.Context) {
 		updateData.Avatar,
 		updateData.Signature,
 		updateData.Birthday,
+		interests,
 		userID)
+
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "更新失败"})
+		tx.Rollback()
+		c.JSON(200, gin.H{
+			"isok":       false,
+			"failreason": "更新失败",
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"isok": true, "message": "个人信息更新成功"})
+	err = tx.Commit()
+	if err != nil {
+		c.JSON(200, gin.H{
+			"isok":       false,
+			"failreason": "事务提交失败",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"isok":    true,
+		"message": "个人信息更新成功",
+		"userID":  userID,
+		"updated": updateData,
+	})
 }
