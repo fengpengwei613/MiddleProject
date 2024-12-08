@@ -95,7 +95,6 @@ type ResetPasswordReq struct {
 }
 
 
-
 // 更新密码
 func (u *User) UpdatePassword(email, newPassword string) (error, string) {
 	db, err := repository.Connect()
@@ -113,4 +112,28 @@ func (u *User) UpdatePassword(email, newPassword string) (error, string) {
 	return nil, "密码更新成功"
 }
 
+type PersonalInfo struct {
+	UserID       int      `json:"userID"`
+	UserName     string   `json:"userName"`
+	UImage       string   `json:"uimage"`
+	Phone        string   `json:"phone"`
+	Mail         string   `json:"mail"`
+	Address      string   `json:"address"`
+	Birthday     string   `json:"birthday"`
+	RegTime      string   `json:"regtime"`
+	Sex          string   `json:"sex"`
+	Introduction string   `json:"introduction"`
+	SchoolName   string   `json:"schoolname"`
+	Major        string   `json:"major"`
+	EduTime      string   `json:"edutime"`
+	EduLevel     string   `json:"edulevel"`
+	CompanyName  string   `json:"companyname"`
+	PositionName string   `json:"positionname"`
+	Industry     string   `json:"industry"`
+	Interests    []string `json:"interests"`
+	LikeNum      string   `json:"likenum"`
+	AttionNum    string   `json:"attionnum"`
+	IsAttion     string   `json:"isattion"`
+	FansNum      string   `json:"fansnum"`
+}
 
