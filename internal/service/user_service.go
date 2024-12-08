@@ -359,7 +359,7 @@ func GetPersonalInfo(db *sql.DB, uid int) (*model.PersonalInfo, error) {
 	query := `
         SELECT user_id, Uname, avatar, phone, email, address, birthday, registration_date, 
            sex, introduction, school, major, edutime, eduleval, companyname, 
-           positionname, industry, interests, likenum, attionnum, fansnum
+           positionname, industry, interests, likenum, attionnum, showlike, fansnum
         FROM users WHERE user_id = ?`
 
 	row := db.QueryRow(query, uid)
@@ -379,13 +379,12 @@ func GetPersonalInfo(db *sql.DB, uid int) (*model.PersonalInfo, error) {
 		return nil, fmt.Errorf("数据库查询失败: %v", err)
 	}
 
-	if info.Interests == nil || len(info.Interests) == 0 {
-		info.Interests = []string{}
-	} else if len(info.Interests) == 1 && info.Interests[0] == "" {
-		info.Interests = []string{}
-	} else {
-		info.Interests = strings.Split(info.Interests[0], ",")
-	}
+	if interestsBytes != nil {
+        interestsStr := string(interestsBytes)
+        info.Interests = strings.Split(interestsStr, ",")
+        } else {
+        info.Interests = []string{}
+         }
 
 	return info, nil
 }
