@@ -14,13 +14,18 @@ import (
 )
 
 type Advpost struct {
-	PostID  int      `json:"id"`
-	Title   string   `json:"title"`
-	Uname   string   `json:"uname"`
-	Uid     string   `json :"uid"`
-	Uimge   string   `json:"uimage"`
-	Time    string   `json:"time"`
-	Subject []string `json:"subject"`
+	PostID      int      `json:"id"`
+	Title       string   `json:"title"`
+	Uname       string   `json:"uname"`
+	Uid         string   `json:"uid"`
+	Uimge       string   `json:"uimage"`
+	Time        string   `json:"time"`
+	Subject     []string `json:"subject"`
+	SomeContent string   `json:"somecontent"`
+	Islike      bool     `json:"islike"`
+	Iscollect   bool     `json:"iscollect"`
+	Likenum     int      `json:"likenum"`
+	Collectnum  int      `json:"collectnum"`
 }
 
 // 推荐逻辑设计
@@ -33,7 +38,7 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 	var posts []Advpost
 	if isattention == "true" {
 		//获取关注的人的帖子，按喜欢数量排序
-		query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=? order by posts.view_count"
+		query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=? order by posts.view_count"
 		rows, err_query := db.Query(query, uid)
 		if err_query != nil {
 			fmt.Println(err_query.Error())
@@ -44,7 +49,75 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 
 			var subject sql.NullString
 			var uidint int
-			err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject)
+			err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
+			if err_scan != nil {
+				fmt.Println(err_scan.Error())
+				return posts, err_scan, 0
+			}
+			post.Time = post.Time[0 : len(post.Time)-3]
+			post.Uid = strconv.Itoa(uidint)
+			var err_url error
+			err_url, post.Uimge = scripts.GetUrl(post.Uimge)
+			if err_url != nil {
+				return posts, err_url, 0
+			}
+			if subject.Valid {
+				str := subject.String
+				post.Subject = strings.Split(str[1:len(str)-1], ",")
+				//去除双引号
+				for i := 0; i < len(post.Subject); i++ {
+					if i == 0 {
+						post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+					} else {
+						post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+					}
+				}
+
+			} else {
+
+				post.Subject = []string{"无关键字"}
+			}
+			//判断是否喜欢
+			query = "select liker_id from postlikes where liker_id=? and post_id=?"
+			row := db.QueryRow(query, uid, post.PostID)
+			var like_id int
+			err_scan = row.Scan(&like_id)
+			if err_scan != nil {
+				post.Islike = false
+			} else {
+				post.Islike = true
+			}
+			//判断是否收藏
+			query = "select user_id from PostFavorites where user_id=? and post_id=?"
+			row = db.QueryRow(query, uid, post.PostID)
+			var favorite_id int
+			err_scan = row.Scan(&favorite_id)
+			if err_scan != nil {
+				post.Iscollect = false
+			} else {
+				post.Iscollect = true
+			}
+			if len(post.SomeContent) > 30 {
+				post.SomeContent = post.SomeContent[0:30]
+			}
+			posts = append(posts, post)
+
+		}
+
+	} else {
+		//获取所有的帖子，按喜欢数量排序
+		query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id order by posts.view_count"
+		rows, err_query := db.Query(query)
+		if err_query != nil {
+			fmt.Println(err_query.Error())
+			return posts, err_query, 0
+		}
+		for rows.Next() {
+			var post Advpost
+			var subject sql.NullString
+			var uidint int
+			err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
+			post.Time = post.Time[0 : len(post.Time)-3]
 			if err_scan != nil {
 				fmt.Println(err_scan.Error())
 				return posts, err_scan, 0
@@ -60,62 +133,54 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 				post.Subject = strings.Split(str[1:len(str)-1], ",")
 				//去除双引号
 				for i := 0; i < len(post.Subject); i++ {
-					post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
-				}
-				fmt.Println(post.Subject)
-
-			} else {
-
-				fmt.Println(subject.String)
-				post.Subject = []string{"无关键字"}
-			}
-			posts = append(posts, post)
-
-		}
-
-	} else {
-		//获取所有的帖子，按喜欢数量排序
-		query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject from posts,users where posts.user_id=users.user_id order by posts.view_count"
-		rows, err_query := db.Query(query)
-		if err_query != nil {
-			fmt.Println(err_query.Error())
-			return posts, err_query, 0
-		}
-		for rows.Next() {
-			var post Advpost
-			var subject sql.NullString
-			var uidint int
-			err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject)
-			if err_scan != nil {
-				fmt.Println(err_scan.Error())
-				return posts, err_scan, 0
-			}
-			post.Uid = strconv.Itoa(uidint)
-			var err_url error
-			err_url, post.Uimge = scripts.GetUrl(post.Uimge)
-			if err_url != nil {
-				return posts, err_url, 0
-			}
-			if subject.Valid {
-				str := subject.String
-				post.Subject = strings.Split(str[1:len(str)-1], ",")
-				for i := 0; i < len(post.Subject); i++ {
-					post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+					if i == 0 {
+						post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+					} else {
+						post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+					}
 				}
 			} else {
 				post.Subject = []string{"无关键字"}
+			}
+			//判断是否喜欢
+			if uid == -1 {
+				post.Islike = false
+				post.Iscollect = false
+			} else {
+				query = "select liker_id from postlikes where liker_id=? and post_id=?"
+				row := db.QueryRow(query, uid, post.PostID)
+				var like_id int
+				err_scan = row.Scan(&like_id)
+				if err_scan != nil {
+					post.Islike = false
+				} else {
+					post.Islike = true
+				}
+				//判断是否收藏
+				query = "select user_id from PostFavorites where user_id=? and post_id=?"
+				row = db.QueryRow(query, uid, post.PostID)
+				var favorite_id int
+				err_scan = row.Scan(&favorite_id)
+				if err_scan != nil {
+					post.Iscollect = false
+				} else {
+					post.Iscollect = true
+				}
+			}
+			if len(post.SomeContent) > 30 {
+				post.SomeContent = post.SomeContent[0:30]
 			}
 			posts = append(posts, post)
 		}
 	}
 	var realPost []Advpost
 	for i := 0; i < len(posts); i++ {
-		if i >= (page-1)*20 && i < page*20 {
+		if i >= (page-1)*10 && i < page*10 {
 			realPost = append(realPost, posts[i])
 		}
 	}
-	totalpage := len(posts) / 20
-	if len(posts)%20 != 0 {
+	totalpage := len(posts) / 10
+	if len(posts)%10 != 0 {
 		totalpage++
 	}
 	return realPost, nil, totalpage
@@ -295,19 +360,31 @@ func GetPostInfo(c *gin.Context) {
 	err_scan := row.Scan(&post.Title, &subject, &post.Content, &images, &uid, &post.Time, &post.ViewNum, &post.LikeNum, &post.CollectNum, &post.ComNum)
 	if err_scan != nil {
 		fmt.Println(err_scan.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{})
+		c.JSON(404, gin.H{})
 		return
 	}
 	post.UID = strconv.Itoa(uid)
 	if subject.Valid {
 		str := subject.String
 		post.Subjects = strings.Split(str[1:len(str)-1], ",")
+		//去除双引号
+		for i := 0; i < len(post.Subjects); i++ {
+			if i == 0 {
+				post.Subjects[i] = post.Subjects[i][1 : len(post.Subjects[i])-1]
+			} else {
+				post.Subjects[i] = post.Subjects[i][2 : len(post.Subjects[i])-1]
+			}
+		}
 	} else {
 		post.Subjects = []string{}
 	}
 	if images.Valid {
 		str := images.String
-		post.ImageNum = strings.Count(str, ",") + 1
+		if str == "[]" {
+			post.ImageNum = 0
+		} else {
+			post.ImageNum = strings.Count(str, ",") + 1
+		}
 	} else {
 		post.ImageNum = 0
 	}
@@ -407,11 +484,24 @@ func GetPostImage(c *gin.Context) {
 	}
 	if images.Valid {
 		str := images.String
+		if str == "[]" {
+			c.JSON(http.StatusBadRequest, gin.H{})
+			return
+		}
 		str = str[1 : len(str)-1]
 		image := strings.Split(str, ",")
+		fmt.Println(image)
+		fmt.Println(image[0])
+
 		if imagenum >= len(image) {
 			c.JSON(http.StatusBadRequest, gin.H{})
 			return
+		}
+
+		if imagenum == 0 {
+			image[imagenum] = image[imagenum][1 : len(image[imagenum])-1]
+		} else {
+			image[imagenum] = image[imagenum][2 : len(image[imagenum])-1]
 		}
 		err_url, url := scripts.GetUrl(image[imagenum])
 		if err_url != nil {

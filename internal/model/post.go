@@ -42,6 +42,7 @@ func (p *Post) AddPost() (error, string, string) {
 	var image_url = p.Images
 	p.Images = []string{}
 	//序列化
+	
 	jsonImages, err_json := json.Marshal(p.Images)
 	if err_json != nil {
 		db.Rollback()

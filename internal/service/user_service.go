@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -137,13 +138,15 @@ func Login(c *gin.Context) {
 	var Avatar string
 
 	isEmail := isEmailFormat(requestData.Userid)
+	fmt.Println("uid1", requestData.Userid)
 	var query string
 	if isEmail {
-		query = "SELECT user_id, password, uname, avatar FROM users WHERE email = ?"
+		query = "SELECT user_id, password, Uname, avatar FROM users WHERE email = ?"
 	} else {
-		query = "SELECT user_id, password, uname, avatar FROM users WHERE user_id = ?"
+		query = "SELECT user_id, password, Uname, avatar FROM users WHERE user_id = ?"
 	}
-
+	fmt.Println(query)
+	fmt.Println(requestData.Userid)
 	row := db.QueryRow(query, requestData.Userid)
 	info := row.Scan(&userID, &storedPassword, &userName, &Avatar)
 

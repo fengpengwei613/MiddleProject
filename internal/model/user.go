@@ -1,8 +1,6 @@
 package model
 
 import (
-	"database/sql"
-	"errors"
 	"fmt"
 	"middleproject/internal/repository"
 	"strconv"
@@ -94,8 +92,6 @@ type ResetPasswordReq struct {
 	Code     string `json:"code" binding:"required"`
 }
 
-
-
 // 更新密码
 func (u *User) UpdatePassword(email, newPassword string) (error, string) {
 	db, err := repository.Connect()
@@ -112,5 +108,3 @@ func (u *User) UpdatePassword(email, newPassword string) (error, string) {
 
 	return nil, "密码更新成功"
 }
-
-
