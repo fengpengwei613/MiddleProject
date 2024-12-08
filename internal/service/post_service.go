@@ -20,7 +20,7 @@ type Advpost struct {
 	Uid         string   `json:"uid"`
 	Uimge       string   `json:"uimage"`
 	Time        string   `json:"time"`
-	Subject     []string `json:"subject"`
+	Subject     []string `json:"subjects"`
 	SomeContent string   `json:"somecontent"`
 	Islike      bool     `json:"islike"`
 	Iscollect   bool     `json:"iscollect"`
@@ -97,8 +97,9 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 			} else {
 				post.Iscollect = true
 			}
-			if len(post.SomeContent) > 30 {
-				post.SomeContent = post.SomeContent[0:30]
+			if len(post.SomeContent) > 300 {
+				post.SomeContent = post.SomeContent[0:300]
+				post.SomeContent = post.SomeContent + "..."
 			}
 			posts = append(posts, post)
 
@@ -142,6 +143,8 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 			} else {
 				post.Subject = []string{"无关键字"}
 			}
+			fmt.Println("uid:", uid)
+
 			//判断是否喜欢
 			if uid == -1 {
 				post.Islike = false
@@ -167,9 +170,11 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 					post.Iscollect = true
 				}
 			}
-			if len(post.SomeContent) > 30 {
-				post.SomeContent = post.SomeContent[0:30]
+			if len(post.SomeContent) > 300 {
+				post.SomeContent = post.SomeContent[0:300]
+				post.SomeContent = post.SomeContent + "..."
 			}
+			fmt.Println(post)
 			posts = append(posts, post)
 		}
 	}
@@ -194,6 +199,7 @@ func PublishPost(c *gin.Context) {
 		return
 	}
 	uidstr := c.DefaultQuery("uid", "-1")
+
 	uid, err := strconv.Atoi(uidstr)
 	if err != nil || uid == -1 {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的用户ID"})
