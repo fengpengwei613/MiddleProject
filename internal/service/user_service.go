@@ -282,26 +282,31 @@ func UpdatePersonalSettings(c *gin.Context) {
 	c.JSON(200, gin.H{"isok": true})
 }
 
-// 找回密码
+//忘记密码
 func ForgotPassword(c *gin.Context) {
+	db, err_conn := repository.Connect()
+	if err_conn != nil {
+		c.JSON(500, gin.H{"isok": false, "failreason": "连接数据库失败"})
+		return
+	}
+
 	var requestData model.ResetPasswordReq
 	if err := c.ShouldBindJSON(&requestData); err != nil {
-		c.JSON(400, gin.H{"isok": false, "failreason": "绑定请求数据失败", "uid": "", "uname": "", "uimage": ""})
+		c.JSON(400, gin.H{"isok": false, "failreason": "绑定请求数据失败"})
+		return
+	}
+	query := "SELECT code FROM verificationcodes WHERE email = ? AND expiration > NOW() ORDER BY expiration DESC LIMIT 1"
+	row := db.QueryRow(query, requestData.Mail)
+	var code string
+	err_check := row.Scan(&code)
+	if err_check != nil || code != requestData.Code {
+		c.JSON(400, gin.H{"isok": false, "failreason": "验证码错误"})
 		return
 	}
 
-	if !repository.VerifyCode(requestData.Mail, requestData.Code) {
-		c.JSON(400, gin.H{"isok": false, "failreason": "验证码错误", "uid": "", "uname": "", "uimage": ""})
-		return
-	}
-
-	user, err := updatePassword(requestData.Mail, requestData.Password)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(404, gin.H{"isok": false, "failreason": "用户不存在", "uid": "", "uname": "", "uimage": ""})
-			return
-		}
-		c.JSON(500, gin.H{"isok": false, "failreason": "更新失败", "uid": "", "uname": "", "uimage": ""})
+	err_re, user, result := updatePassword(db, requestData.Mail, requestData.Password)
+	if err_re != nil || user.UserID == 0 {
+		c.JSON(500, gin.H{"isok": false, "failreason": result})
 		return
 	}
 
@@ -310,163 +315,135 @@ func ForgotPassword(c *gin.Context) {
 		"failreason": "",
 		"uid":        user.UserID,
 		"uname":      user.Uname,
+		"uimage":     user.Avatar,
 	})
 }
 
-// 更新用户密码
-func updatePassword(mail string, newPassword string) (*model.User, error) {
-
-	db, err := repository.Connect()
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
+//更新密码
+func updatePassword(db *sql.DB, mail string, newPassword string) (error, model.User, string) {
 
 	tx, err := db.Begin()
 	if err != nil {
-		return nil, err
+		return err, model.User{}, "开启事务失败"
 	}
-
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-	}()
+	defer tx.Rollback() 
 
 	stmt, err := tx.Prepare("UPDATE users SET password = ? WHERE email = ?")
 	if err != nil {
-		return nil, err
+		return err, model.User{}, "准备更新语句失败"
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(newPassword, mail)
-	if err != nil {
-		return nil, err
-	}
-
 	var user model.User
 	row := tx.QueryRow("SELECT user_id, uname, avatar FROM users WHERE email = ?", mail)
-	if err := row.Scan(&user.UserID, &user.Uname); err != nil {
-		return nil, err
+	if err := row.Scan(&user.UserID, &user.Uname, &user.Avatar); err != nil {
+		return err, model.User{}, "查询用户信息失败"
 	}
 
-	return &user, nil
+	_, err = stmt.Exec(newPassword, mail)
+	if err != nil {
+		return err, model.User{}, "更新密码失败"
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err, model.User{}, "提交事务失败"
+	}
+
+	return nil, user, ""
 }
 
-// 获取个人信息
-func GetPersonalInfo(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"isok": false, "failreason": "未授权"})
-		return
+// 获取个人信息函数
+func GetPersonalInfo(db *sql.DB, uid int) (*model.PersonalInfo, error) {
+	// 定义 SQL 查询语句
+	query := `
+        SELECT user_id, Uname, avatar, phone, email, address, birthday, registration_date, 
+           sex, introduction, school, major, edutime, eduleval, companyname, 
+           positionname, industry, interests, likenum, attionnum, fansnum
+        FROM users WHERE user_id = ?`
+
+	row := db.QueryRow(query, uid)
+        info := &model.PersonalInfo{}
+
+	err := row.Scan(
+		&info.UserID, &info.UserName, &info.UImage, &info.Phone, &info.Mail,
+		&info.Address, &info.Birthday, &info.RegTime, &info.Sex,
+		&info.Introduction, &info.SchoolName, &info.Major, &info.EduTime,
+		&info.EduLevel, &info.CompanyName, &info.PositionName, &info.Industry,
+		&info.Interests, &info.LikeNum, &info.AttionNum, &info.IsAttion, &info.FansNum,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("用户不存在")
+		}
+		return nil, fmt.Errorf("数据库查询失败: %v", err)
 	}
+
+	if info.Interests == nil || len(info.Interests) == 0 {
+		info.Interests = []string{}
+	} else if len(info.Interests) == 1 && info.Interests[0] == "" {
+		info.Interests = []string{}
+	} else {
+		info.Interests = strings.Split(info.Interests[0], ",")
+	}
+
+	return info, nil
+}
+
+// 处理获取个人信息的请求
+func HandleGetPersonalInfo(c *gin.Context) {
 
 	db, err := repository.Connect()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "数据库连接失败"})
 		return
 	}
 	defer db.Close()
 
-	row := db.QueryRow(`
-        SELECT user_id, uname, uimage, phone, mail, address, birthday, regtime, sex, 
-               introduction, schoolname, major, edutime, edulevel, companyname, 
-               positionname, industry, interests, likenum, attionnum, isattion, fansnum
-        FROM users WHERE user_id = ?`, userID)
-
-	var userInfo struct {
-		UserID       int      `json:"userID"`
-		UserName     string   `json:"userName"`
-		UImage       string   `json:"uimage"`
-		Phone        string   `json:"phone"`
-		Mail         string   `json:"mail"`
-		Address      string   `json:"address"`
-		Birthday     string   `json:"birthday"`
-		RegTime      string   `json:"regtime"`
-		Sex          string   `json:"sex"`
-		Introduction string   `json:"introduction"`
-		SchoolName   string   `json:"schoolname"`
-		Major        string   `json:"major"`
-		EduTime      string   `json:"edutime"`
-		EduLevel     string   `json:"edulevel"`
-		CompanyName  string   `json:"companyname"`
-		PositionName string   `json:"positionname"`
-		Industry     string   `json:"industry"`
-		Interests    []string `json:"interests"`
-		LikeNum      string   `json:"likenum"`
-		AttionNum    string   `json:"attionnum"`
-		IsAttion     string   `json:"isattion"`
-		FansNum      string   `json:"fansnum"`
-	}
-	err = row.Scan(
-		&userInfo.UserID, &userInfo.UserName, &userInfo.UImage, &userInfo.Phone, &userInfo.Mail,
-		&userInfo.Address, &userInfo.Birthday, &userInfo.RegTime, &userInfo.Sex,
-		&userInfo.Introduction, &userInfo.SchoolName, &userInfo.Major, &userInfo.EduTime,
-		&userInfo.EduLevel, &userInfo.CompanyName, &userInfo.PositionName, &userInfo.Industry,
-		&userInfo.Interests, &userInfo.LikeNum, &userInfo.AttionNum, &userInfo.IsAttion, &userInfo.FansNum,
-	)
-
+	uid := c.DefaultQuery("uid", "") // 获取 uid 参数
+	id, err := strconv.Atoi(uid)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"isok": false, "failreason": "用户不存在"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库查询失败"})
-		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的用户ID"})
 		return
 	}
 
-	if len(userInfo.Interests) == 0 {
-		userInfo.Interests = []string{}
-	}
-
-	if userInfo.UImage != "" {
-		userInfo.UImage = strings.Trim(userInfo.UImage, "[]")
-		images := strings.Split(userInfo.UImage, ",")
-
-		if len(images) > 0 {
-			err, url := scripts.GetUrl(images[0])
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "获取头像失败"})
-				return
-			}
-			userInfo.UImage = url
-		}
+	info, err := GetPersonalInfo(db, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"isok":         true,
-		"userID":       userInfo.UserID,
-		"userName":     userInfo.UserName,
-		"uimage":       userInfo.UImage,
-		"phone":        userInfo.Phone,
-		"mail":         userInfo.Mail,
-		"address":      userInfo.Address,
-		"birthday":     userInfo.Birthday,
-		"regtime":      userInfo.RegTime,
-		"sex":          userInfo.Sex,
-		"introduction": userInfo.Introduction,
-		"schoolname":   userInfo.SchoolName,
-		"major":        userInfo.Major,
-		"edutime":      userInfo.EduTime,
-		"edulevel":     userInfo.EduLevel,
-		"companyname":  userInfo.CompanyName,
-		"positionname": userInfo.PositionName,
-		"industry":     userInfo.Industry,
-		"interests":    userInfo.Interests,
-		"likenum":      userInfo.LikeNum,
-		"attionnum":    userInfo.AttionNum,
-		"isattion":     userInfo.IsAttion,
-		"fansnum":      userInfo.FansNum,
+		"userID":       info.UserID,
+		"userName":     info.UserName,
+		"uimage":       info.UImage,
+		"phone":        info.Phone,
+		"mail":         info.Mail,
+		"address":      info.Address,
+		"birthday":     info.Birthday,
+		"regtime":      info.RegTime,
+		"sex":          info.Sex,
+		"introduction": info.Introduction,
+		"schoolname":   info.SchoolName,
+		"major":        info.Major,
+		"edutime":      info.EduTime,
+		"edulevel":     info.EduLevel,
+		"companyname":  info.CompanyName,
+		"positionname": info.PositionName,
+		"industry":     info.Industry,
+		"interests":    info.Interests,
+		"likenum":      info.LikeNum,
+		"attionnum":    info.AttionNum,
+		"isattion":     info.IsAttion,
+		"fansnum":      info.FansNum,
 	})
 }
 
-func UpdatePersonalInfo(c *gin.Context) {
 
+// 更新个人信息
+func UpdatePersonalInfo(c *gin.Context) {
 	db, err := repository.Connect()
 	if err != nil {
-
 		c.JSON(200, gin.H{
 			"isok":       false,
 			"failreason": "数据库连接失败",
@@ -504,6 +481,7 @@ func UpdatePersonalInfo(c *gin.Context) {
 		return
 	}
 
+	// 获取用户 ID
 	userID, exists := c.Get("userID")
 	if !exists {
 		tx.Rollback()
