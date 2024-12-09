@@ -213,7 +213,6 @@ func PublishPost(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"isok": true, "logid": idstr})
-	//fmt.Println("返回的消息：", idstr)
 
 }
 
@@ -277,7 +276,7 @@ type PostData struct {
 }
 
 // 获取评论信息
-func GetCommentInfo(page int, postid int, uid int) (error, []PostComment) {
+func GetCommentInfo(page_num int, postid int, uid int, comid int) (error, []PostComment) {
 	var comments []PostComment
 	db, err_conn := repository.Connect()
 	if err_conn != nil {
@@ -285,11 +284,24 @@ func GetCommentInfo(page int, postid int, uid int) (error, []PostComment) {
 	}
 	defer db.Close()
 	//按照喜欢数量排序，10条
-	query := "select comments.comment_id, users.Uname,comments.content,users.user_id,users.avatar,comments.comment_time,comments.like_count,comments.reply_count from users,comments where users.user_id=comments.commenter_id AND comments.post_id=? order by comments.like_count desc limit ?,10"
-	rows, err_query := db.Query(query, postid, (page-1)*10)
-	if err_query != nil {
-		return err_query, comments
+	var query string
+	var rows *sql.Rows
+	if comid == -1 {
+		query = "select comments.comment_id, users.Uname,comments.content,users.user_id,users.avatar,comments.comment_time,comments.like_count,comments.reply_count from users,comments where users.user_id=comments.commenter_id AND comments.post_id=? AND parent_comment_id is null order by comments.like_count desc limit ?,10"
+		var err_query error
+		rows, err_query = db.Query(query, postid, page_num)
+		if err_query != nil {
+			return err_query, comments
+		}
+	} else {
+		query = "select comments.comment_id, users.Uname,comments.content,users.user_id,users.avatar,comments.comment_time,comments.like_count,comments.reply_count from users,comments where users.user_id=comments.commenter_id AND comments.post_id=? AND parent_comment_id = ? order by comments.like_count desc limit ?,5"
+		var err_query2 error
+		rows, err_query2 = db.Query(query, postid, comid, page_num)
+		if err_query2 != nil {
+			return err_query2, comments
+		}
 	}
+
 	for rows.Next() {
 		var comment PostComment
 		var uid int
@@ -443,7 +455,7 @@ func GetPostInfo(c *gin.Context) {
 		post.IsCollect = false
 	}
 	var err_get error
-	err_get, post.Comments = GetCommentInfo(1, postid, Uid_P)
+	err_get, post.Comments = GetCommentInfo(0, postid, Uid_P, -1)
 	if err_get != nil {
 		fmt.Println(err_get.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{})

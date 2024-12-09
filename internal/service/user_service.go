@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -282,7 +281,7 @@ func UpdatePersonalSettings(c *gin.Context) {
 	c.JSON(200, gin.H{"isok": true})
 }
 
-//忘记密码
+// 忘记密码
 func ForgotPassword(c *gin.Context) {
 	db, err_conn := repository.Connect()
 	if err_conn != nil {
@@ -319,14 +318,14 @@ func ForgotPassword(c *gin.Context) {
 	})
 }
 
-//更新密码
+// 更新密码
 func updatePassword(db *sql.DB, mail string, newPassword string) (error, model.User, string) {
 
 	tx, err := db.Begin()
 	if err != nil {
 		return err, model.User{}, "开启事务失败"
 	}
-	defer tx.Rollback() 
+	defer tx.Rollback()
 
 	stmt, err := tx.Prepare("UPDATE users SET password = ? WHERE email = ?")
 	if err != nil {
@@ -363,7 +362,7 @@ func GetPersonalInfo(db *sql.DB, uid int) (*model.PersonalInfo, error) {
         FROM users WHERE user_id = ?`
 
 	row := db.QueryRow(query, uid)
-        info := &model.PersonalInfo{}
+	info := &model.PersonalInfo{}
 
 	err := row.Scan(
 		&info.UserID, &info.UserName, &info.UImage, &info.Phone, &info.Mail,
@@ -379,12 +378,12 @@ func GetPersonalInfo(db *sql.DB, uid int) (*model.PersonalInfo, error) {
 		return nil, fmt.Errorf("数据库查询失败: %v", err)
 	}
 
-	if interestsBytes != nil {
-        interestsStr := string(interestsBytes)
-        info.Interests = strings.Split(interestsStr, ",")
-        } else {
-        info.Interests = []string{}
-         }
+	// if interestsBytes != nil {
+	//     interestsStr := string(interestsBytes)
+	//     info.Interests = strings.Split(interestsStr, ",")
+	//     } else {
+	//     info.Interests = []string{}
+	//      }
 
 	return info, nil
 }
@@ -437,7 +436,6 @@ func HandleGetPersonalInfo(c *gin.Context) {
 		"fansnum":      info.FansNum,
 	})
 }
-
 
 // 更新个人信息
 func UpdatePersonalInfo(c *gin.Context) {

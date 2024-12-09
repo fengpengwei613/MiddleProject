@@ -96,3 +96,51 @@ func PublishReply(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"isok": true, "id": idstr})
 
 }
+
+func GetMoreComment(c *gin.Context) {
+	postidstr := c.DefaultQuery("logid", "-1")
+	nowcommentstr := c.DefaultQuery("nowcomment", "-1")
+	uidstr := c.DefaultQuery("uid", "-1")
+	postid, err_pid := strconv.Atoi(postidstr)
+	nowcomment, err_now := strconv.Atoi(nowcommentstr)
+	uid, err_uid := strconv.Atoi(uidstr)
+	if err_pid != nil || err_now != nil || err_uid != nil {
+		c.JSON(http.StatusBadRequest, gin.H{})
+		return
+	}
+	if postid == -1 || nowcomment == -1 {
+		c.JSON(http.StatusBadRequest, gin.H{})
+		return
+	}
+	err, posts := GetCommentInfo(nowcomment, postid, uid, -1)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"comments": posts})
+}
+
+func GetMoreReply(c *gin.Context) {
+	commentidstr := c.DefaultQuery("comid", "-1")
+	logidstr := c.DefaultQuery("logid", "-1")
+	nowreplystr := c.DefaultQuery("nowrepnum", "-1")
+	uidstr := c.DefaultQuery("uid", "-1")
+	commentid, err_cid := strconv.Atoi(commentidstr)
+	nowreply, err_now := strconv.Atoi(nowreplystr)
+	uid, err_uid := strconv.Atoi(uidstr)
+	postid, err_pid := strconv.Atoi(logidstr)
+	if err_cid != nil || err_now != nil || err_uid != nil || err_pid != nil {
+		c.JSON(http.StatusBadRequest, gin.H{})
+		return
+	}
+	if commentid == -1 || nowreply == -1 || postid == -1 {
+		c.JSON(http.StatusBadRequest, gin.H{})
+		return
+	}
+	err, posts := GetCommentInfo(nowreply, postid, uid, commentid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"replies": posts})
+}

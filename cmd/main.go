@@ -49,6 +49,16 @@ func main() {
 		fmt.Println("收到获取帖子图片请求")
 		service.GetPostImage(c)
 	})
+	//获取更多评论
+	r.GET("/api/morecom", func(c *gin.Context) {
+		fmt.Println("收到获取更多评论请求")
+		service.GetMoreComment(c)
+	})
+	//获取更多回复
+	r.GET("/api/morereply", func(c *gin.Context) {
+		fmt.Println("收到获取更多回复请求")
+		service.GetMoreReply(c)
+	})
 	//登录
 	r.POST("/api/login", func(c *gin.Context) {
 		fmt.Println("收到登录请求")
