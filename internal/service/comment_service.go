@@ -144,3 +144,88 @@ func GetMoreReply(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"replies": posts})
 }
+
+// 删除评论接口
+func DeleteComment(c *gin.Context) {
+	var request struct {
+		UID   string `json:"uid"`
+		LogID string `json:"logid"`
+		ComID string `json:"comid"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+	uid, err := strconv.Atoi(request.UID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的用户ID"})
+		return
+	}
+
+	commentID, err := strconv.Atoi(request.ComID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的评论ID"})
+		return
+	}
+	postID, err := strconv.Atoi(request.LogID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的帖子ID"})
+		return
+	}
+
+	erro, msg := model.DeleteCommentByUser(commentID, uid, postID)
+	if erro != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": msg})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"isok": true, "message": msg})
+}
+
+// 删除回复接口
+func DeleteReply(c *gin.Context) {
+	var request struct {
+		UID     string `json:"uid"`
+		LogID   string `json:"logid"`
+		ComID   string `json:"comid"`
+		ReplyID string `json:"replyid"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+
+	uid, err := strconv.Atoi(request.UID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的用户ID"})
+		return
+	}
+
+	postID, err := strconv.Atoi(request.LogID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的帖子ID"})
+		return
+	}
+
+	commentID, err := strconv.Atoi(request.ComID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的评论ID"})
+		return
+	}
+
+	replyID, err := strconv.Atoi(request.ReplyID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的回复ID"})
+		return
+	}
+
+	erro, msg := model.DeleteReplyByUser(replyID, uid, postID, commentID)
+	if erro != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": msg})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"isok": true, "message": msg})
+}
