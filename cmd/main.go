@@ -98,6 +98,11 @@ func main() {
 	//获取个人收藏帖子
 	r.GET("/api/percollectlogs", service.GetPersonalCollectPosts)
 
+	//删除评论
+	r.POST("/api/deletereply", service.DeleteReply)
+	//删除回复
+	r.POST("/api/deletecomment", service.DeleteComment)
+
 	// 启动 HTTP 服务器
 	if err := r.Run(":8080"); err != nil {
 		fmt.Println("启动服务器失败:", err)
