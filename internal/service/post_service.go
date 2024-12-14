@@ -534,3 +534,35 @@ func GetPostImage(c *gin.Context) {
 	}
 
 }
+
+// 删除帖子接口
+func DeletePost(c *gin.Context) {
+	var request struct {
+		UID   string `json:"uid"`
+		LogID string `json:"logid"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+
+	uid, err := strconv.Atoi(request.UID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的用户ID"})
+		return
+	}
+
+	postID, err := strconv.Atoi(request.LogID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的帖子ID"})
+		return
+	}
+	erro, msg := model.DeletePostByUser(postID, uid)
+	if erro != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": msg})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"isok": true, "message": msg})
+}
