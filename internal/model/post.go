@@ -214,3 +214,73 @@ func LikeComment(userID, commentID int) (error, string) {
 		return nil, "点赞成功"
 	}
 }
+
+
+// 删除帖子
+func DeletePostByUser(postID int, uid int) (error, string) {
+	db_link, err := repository.Connect()
+	if err != nil {
+		return err, "连接数据库失败"
+	}
+	defer db_link.Close()
+
+	var userPermission int
+	query := "SELECT permission FROM users WHERE user_id = ?"
+	err = db_link.QueryRow(query, uid).Scan(&userPermission)
+	if err != nil {
+		return err, "获取用户权限失败"
+	}
+	var postOwnerID int
+	query = "SELECT user_id FROM posts WHERE post_id = ?"
+	err = db_link.QueryRow(query, postID).Scan(&postOwnerID)
+	if err != nil {
+		return err, "获取帖子信息失败"
+	}
+
+	if postOwnerID != uid && userPermission != 1 {
+		return fmt.Errorf("无权限删除该帖子"), "无权限删除该帖子"
+	}
+
+	tx, err_tx := db_link.Begin()
+	if err_tx != nil {
+		return err_tx, "事务开启失败"
+	}
+
+	err = deleteAllCommentsByPost(tx, postID)
+	if err != nil {
+		tx.Rollback()
+		return err, "删除帖子评论失败"
+	}
+
+	query = "DELETE FROM posts WHERE post_id = ?"
+	_, err = tx.Exec(query, postID)
+	if err != nil {
+		tx.Rollback()
+		return err, "删除帖子失败"
+	}
+
+	query = "UPDATE posts SET comment_count = 0 WHERE post_id = ?"
+	_, err = tx.Exec(query, postID)
+	if err != nil {
+		tx.Rollback()
+		return err, "更新帖子评论数量失败"
+	}
+
+	err_commit := tx.Commit()
+	if err_commit != nil {
+		tx.Rollback()
+		return err_commit, "事务提交失败"
+	}
+
+	return nil, "删除帖子及其评论成功"
+}
+
+// 删除与帖子相关的所有评论
+func deleteAllCommentsByPost(tx *sql.Tx, postID int) error {
+	query := "DELETE FROM comments WHERE post_id = ?"
+	_, err := tx.Exec(query, postID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
