@@ -98,6 +98,8 @@ func main() {
 	//获取个人收藏帖子
 	r.GET("/api/percollectlogs", service.GetPersonalCollectPosts)
 
+	//删帖
+	r.POST("/api/deletelog", service.DeletePost)
 	//删除评论
 	r.POST("/api/deletereply", service.DeleteReply)
 	//删除回复
