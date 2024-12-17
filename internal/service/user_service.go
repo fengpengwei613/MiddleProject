@@ -294,7 +294,7 @@ func ForgotPassword(c *gin.Context) {
 		c.JSON(400, gin.H{"isok": false, "failreason": "绑定请求数据失败"})
 		return
 	}
-	query := "SELECT code FROM verificationcodes WHERE email = ? AND expiration > NOW() ORDER BY expiration DESC LIMIT 1"
+	query := "SELECT code FROM verificationcodes WHERE email = ? AND expiration < NOW() ORDER BY expiration DESC LIMIT 1"
 	row := db.QueryRow(query, requestData.Mail)
 	var code string
 	err_check := row.Scan(&code)
