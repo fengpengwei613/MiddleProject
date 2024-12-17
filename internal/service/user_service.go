@@ -352,24 +352,40 @@ func updatePassword(db *sql.DB, mail string, newPassword string) (error, model.U
 	return nil, user, ""
 }
 
-// 获取个人信息函数
-func GetPersonalInfo(db *sql.DB, uid int) (*model.PersonalInfo, error) {
-	// 定义 SQL 查询语句
+// GetPersonalInfo 获取个人信息函数
+func GetPersonalInfo(db *sql.DB, uid string) (*model.PersonalInfo, error) {
 	query := `
         SELECT user_id, Uname, avatar, phone, email, address, birthday, registration_date, 
-           sex, introduction, school, major, edutime, eduleval, companyname, 
-           positionname, industry, interests, likenum, attionnum, showlike, fansnum
+               sex, introduction, school, major, edutime, eduleval, companyname, positionname, 
+               industry, interests, likenum, attionnum, fansnum
         FROM users WHERE user_id = ?`
 
-	row := db.QueryRow(query, uid)
 	info := &model.PersonalInfo{}
+	var (
+		phoneNull        sql.NullString
+		emailNull        sql.NullString
+		addressNull      sql.NullString
+		birthdayNull     sql.NullString
+		registrationDate sql.NullString
+		sexNull          sql.NullInt64
+		introductionNull sql.NullString
+		schoolNull       sql.NullString
+		majorNull        sql.NullString
+		edutimeNull      sql.NullString
+		edulevelNull     sql.NullString
+		companyNull      sql.NullString
+		positionNull     sql.NullString
+		industryNull     sql.NullString
+		interestsNull    sql.NullString
+		likenumNull      sql.NullInt64
+		attionnumNull    sql.NullInt64
+		fansnumNull      sql.NullInt64
+	)
 
-	err := row.Scan(
-		&info.UserID, &info.UserName, &info.UImage, &info.Phone, &info.Mail,
-		&info.Address, &info.Birthday, &info.RegTime, &info.Sex,
-		&info.Introduction, &info.SchoolName, &info.Major, &info.EduTime,
-		&info.EduLevel, &info.CompanyName, &info.PositionName, &info.Industry,
-		&info.Interests, &info.LikeNum, &info.AttionNum, &info.IsAttion, &info.FansNum,
+	err := db.QueryRow(query, uid).Scan(
+		&info.UserID, &info.UserName, &info.UImage, &phoneNull, &emailNull, &addressNull, &birthdayNull, &registrationDate,
+		&sexNull, &introductionNull, &schoolNull, &majorNull, &edutimeNull, &edulevelNull, &companyNull, &positionNull,
+		&industryNull, &interestsNull, &likenumNull, &attionnumNull, &fansnumNull,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -378,63 +394,50 @@ func GetPersonalInfo(db *sql.DB, uid int) (*model.PersonalInfo, error) {
 		return nil, fmt.Errorf("数据库查询失败: %v", err)
 	}
 
-	// if interestsBytes != nil {
-	//     interestsStr := string(interestsBytes)
-	//     info.Interests = strings.Split(interestsStr, ",")
-	//     } else {
-	//     info.Interests = []string{}
-	//      }
+	info.Phone = phoneNull.String
+	info.Mail = emailNull.String
+	info.Address = addressNull.String
+	info.Birthday = birthdayNull.String
+	info.RegTime = registrationDate.String
+	info.Sex = strconv.FormatInt(sexNull.Int64, 10)
+	info.Introduction = introductionNull.String
+	info.SchoolName = schoolNull.String
+	info.Major = majorNull.String
+	info.EduTime = edutimeNull.String
+	info.EduLevel = edulevelNull.String
+	info.CompanyName = companyNull.String
+	info.PositionName = positionNull.String
+	info.Industry = industryNull.String
+	info.Interests = []string{interestsNull.String}
+	info.LikeNum = strconv.FormatInt(likenumNull.Int64, 10)
+	info.AttionNum = strconv.FormatInt(attionnumNull.Int64, 10)
+	info.FansNum = strconv.FormatInt(fansnumNull.Int64, 10)
 
 	return info, nil
 }
 
 // 处理获取个人信息的请求
 func HandleGetPersonalInfo(c *gin.Context) {
-
-	db, err := repository.Connect()
+	db, err := repository.Connect() 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "数据库连接失败"})
 		return
 	}
 	defer db.Close()
 
-	uid := c.DefaultQuery("uid", "") // 获取 uid 参数
-	id, err := strconv.Atoi(uid)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的用户ID"})
+	uid := c.Query("uid")
+	if uid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID不能为空"})
 		return
 	}
 
-	info, err := GetPersonalInfo(db, id)
+	personalInfo, err := GetPersonalInfo(db, uid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"userID":       info.UserID,
-		"userName":     info.UserName,
-		"uimage":       info.UImage,
-		"phone":        info.Phone,
-		"mail":         info.Mail,
-		"address":      info.Address,
-		"birthday":     info.Birthday,
-		"regtime":      info.RegTime,
-		"sex":          info.Sex,
-		"introduction": info.Introduction,
-		"schoolname":   info.SchoolName,
-		"major":        info.Major,
-		"edutime":      info.EduTime,
-		"edulevel":     info.EduLevel,
-		"companyname":  info.CompanyName,
-		"positionname": info.PositionName,
-		"industry":     info.Industry,
-		"interests":    info.Interests,
-		"likenum":      info.LikeNum,
-		"attionnum":    info.AttionNum,
-		"isattion":     info.IsAttion,
-		"fansnum":      info.FansNum,
-	})
+	c.JSON(http.StatusOK, personalInfo)
 }
 
 // 更新个人信息
