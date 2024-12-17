@@ -110,7 +110,7 @@ func (u *User) UpdatePassword(email, newPassword string) (error, string) {
 }
 
 type PersonalInfo struct {
-	UserID       int      `json:"userID"`
+	UserID       string   `json:"userID"`
 	UserName     string   `json:"userName"`
 	UImage       string   `json:"uimage"`
 	Phone        string   `json:"phone"`
