@@ -1,6 +1,8 @@
 package model
 
 import (
+	"database/sql"
+	"fmt"
 	"middleproject/internal/repository"
 	"strconv"
 	"time"

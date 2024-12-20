@@ -64,6 +64,21 @@ func main() {
 		fmt.Println("收到搜索帖子请求")
 		service.SearchPost(c)
 	})
+	//管理员登录
+	r.POST("/api/admlogin", func(c *gin.Context) {
+		fmt.Println("收到管理员登录请求")
+		service.AdmLogin(c)
+	})
+	//获取所有用户信息
+	r.GET("/api/adm/alluser", func(c *gin.Context) {
+		fmt.Println("收到获取用户信息请求")
+		service.GetallUser(c)
+	})
+	//获取所有帖子信息
+	r.GET("/api/adm/allpost", func(c *gin.Context) {
+		fmt.Println("收到获取帖子信息请求")
+		service.GetallPost(c)
+	})
 	//登录
 	r.POST("/api/login", func(c *gin.Context) {
 		fmt.Println("收到登录请求")
