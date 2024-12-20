@@ -104,6 +104,13 @@ func main() {
 	r.POST("/api/deletereply", service.DeleteReply)
 	//删除回复
 	r.POST("/api/deletecomment", service.DeleteComment)
+    
+
+	//获取举报目标
+	r.GET("/api/adm/getreports", service.GetReports)
+	//获取举报目标详情
+	r.GET("/api/adm/getreportinfo",service.GetReportInfo)
+
 
 	// 启动 HTTP 服务器
 	if err := r.Run(":8080"); err != nil {

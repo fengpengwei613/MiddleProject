@@ -3,6 +3,7 @@ package model
 //package main
 
 import (
+	"fmt"
 	"database/sql"
 	"encoding/json"
 	"middleproject/internal/repository"
