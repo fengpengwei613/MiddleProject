@@ -563,6 +563,356 @@ func DeletePost(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": msg})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"isok": true, "message": msg})
+}
+
+func searchStrategy(page int, uid int, isattion string, aimuid int, key string) ([]Advpost, error, int) {
+	db, err_conn := repository.Connect()
+	if err_conn != nil {
+		return nil, err_conn, 0
+	}
+	defer db.Close()
+	var posts []Advpost
+	if aimuid != -1 {
+		if key[0] == '#' {
+			key = key[1:]
+			query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id AND posts.user_id=? AND posts.post_subject like ? order by posts.view_count"
+			rows, err_query := db.Query(query, aimuid, "%"+key+"%")
+			if err_query != nil {
+				fmt.Println(err_query.Error())
+				return posts, err_query, 0
+			}
+			for rows.Next() {
+				var post Advpost
+				var subject sql.NullString
+				var uidint int
+				err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
+				if err_scan != nil {
+					fmt.Println(err_scan.Error())
+					return posts, err_scan, 0
+				}
+				post.Time = post.Time[0 : len(post.Time)-3]
+				post.Uid = strconv.Itoa(uidint)
+				var err_url error
+				err_url, post.Uimge = scripts.GetUrl(post.Uimge)
+				if err_url != nil {
+					return posts, err_url, 0
+				}
+				if subject.Valid {
+					str := subject.String
+					post.Subject = strings.Split(str[1:len(str)-1], ",")
+					//去除双引号
+					for i := 0; i < len(post.Subject); i++ {
+						if i == 0 {
+							post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+						} else {
+							post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+						}
+					}
+				} else {
+					post.Subject = []string{"无关键字"}
+				}
+				//判断是否喜欢
+				query = "select liker_id from postlikes where liker_id=? and post_id=?"
+				row := db.QueryRow(query, uid, post.PostID)
+				var like_id int
+				err_scan = row.Scan(&like_id)
+				if err_scan != nil {
+					post.Islike = false
+				}
+				//判断是否收藏
+				query = "select user_id from PostFavorites where user_id=? and post_id=?"
+				row = db.QueryRow(query, uid, post.PostID)
+				var favorite_id int
+				err_scan = row.Scan(&favorite_id)
+				if err_scan != nil {
+					post.Iscollect = false
+				}
+				if len(post.SomeContent) > 300 {
+					post.SomeContent = post.SomeContent[0:300]
+					post.SomeContent = post.SomeContent + "..."
+				}
+				posts = append(posts, post)
+			}
+		} else if key[0] == '@' {
+			return nil, nil, 0
+
+		} else {
+			//查询帖子标题包含关键字的帖子
+			query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id AND posts.user_id=? AND posts.title like ? order by posts.view_count"
+			rows, err_query := db.Query(query, aimuid, "%"+key+"%")
+			if err_query != nil {
+				fmt.Println(err_query.Error())
+				return posts, err_query, 0
+			}
+			for rows.Next() {
+				var post Advpost
+				var subject sql.NullString
+				var uidint int
+				err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
+				if err_scan != nil {
+					fmt.Println(err_scan.Error())
+					return posts, err_scan, 0
+				}
+				post.Time = post.Time[0 : len(post.Time)-3]
+				post.Uid = strconv.Itoa(uidint)
+				var err_url error
+				err_url, post.Uimge = scripts.GetUrl(post.Uimge)
+				if err_url != nil {
+					return posts, err_url, 0
+				}
+				if subject.Valid {
+					str := subject.String
+					post.Subject = strings.Split(str[1:len(str)-1], ",")
+					//去除双引号
+					for i := 0; i < len(post.Subject); i++ {
+						if i == 0 {
+							post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+						} else {
+							post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+						}
+					}
+				} else {
+					post.Subject = []string{"无关键字"}
+				}
+				//判断是否喜欢
+				query = "select liker_id from postlikes where liker_id=? and post_id=?"
+				row := db.QueryRow(query, uid, post.PostID)
+				var like_id int
+				err_scan = row.Scan(&like_id)
+				if err_scan != nil {
+					post.Islike = false
+				}
+				//判断是否收藏
+				query = "select user_id from PostFavorites where user_id=? and post_id=?"
+				row = db.QueryRow(query, uid, post.PostID)
+				var favorite_id int
+				err_scan = row.Scan(&favorite_id)
+				if err_scan != nil {
+					post.Iscollect = false
+				}
+				if len(post.SomeContent) > 300 {
+					post.SomeContent = post.SomeContent[0:300]
+					post.SomeContent = post.SomeContent + "..."
+				}
+				posts = append(posts, post)
+			}
+		}
+
+	} else {
+		if key[0] == '#' {
+			key = key[1:]
+			query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id AND posts.post_subject like ? order by posts.view_count"
+			rows, err_query := db.Query(query, "%"+key+"%")
+			if err_query != nil {
+				fmt.Println(err_query.Error())
+				return posts, err_query, 0
+			}
+			for rows.Next() {
+				var post Advpost
+				var subject sql.NullString
+				var uidint int
+				err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
+				if err_scan != nil {
+					fmt.Println(err_scan.Error())
+					return posts, err_scan, 0
+				}
+				post.Time = post.Time[0 : len(post.Time)-3]
+				post.Uid = strconv.Itoa(uidint)
+				var err_url error
+				err_url, post.Uimge = scripts.GetUrl(post.Uimge)
+				if err_url != nil {
+					return posts, err_url, 0
+				}
+				if subject.Valid {
+					str := subject.String
+					post.Subject = strings.Split(str[1:len(str)-1], ",")
+					//去除双引号
+					for i := 0; i < len(post.Subject); i++ {
+						if i == 0 {
+							post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+						} else {
+							post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+						}
+					}
+				} else {
+					post.Subject = []string{"无关键字"}
+				}
+				//判断是否喜欢
+				query = "select liker_id from postlikes where liker_id=? and post_id=?"
+				row := db.QueryRow(query, uid, post.PostID)
+				var like_id int
+				err_scan = row.Scan(&like_id)
+				if err_scan != nil {
+					post.Islike = false
+				}
+				//判断是否收藏
+				query = "select user_id from PostFavorites where user_id=? and post_id=?"
+				row = db.QueryRow(query, uid, post.PostID)
+				var favorite_id int
+				err_scan = row.Scan(&favorite_id)
+				if err_scan != nil {
+					post.Iscollect = false
+				}
+				if len(post.SomeContent) > 300 {
+					post.SomeContent = post.SomeContent[0:300]
+					post.SomeContent = post.SomeContent + "..."
+				}
+				posts = append(posts, post)
+			}
+		} else if key[0] == '@' {
+			str := key[1:]
+			query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id AND users.Uname like ? order by posts.view_count"
+			rows, err_query := db.Query(query, "%"+str+"%")
+			if err_query != nil {
+				fmt.Println(err_query.Error())
+				return posts, err_query, 0
+			}
+			for rows.Next() {
+				var post Advpost
+				var subject sql.NullString
+				var uidint int
+				err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
+				if err_scan != nil {
+					fmt.Println(err_scan.Error())
+					return posts, err_scan, 0
+				}
+				post.Time = post.Time[0 : len(post.Time)-3]
+				post.Uid = strconv.Itoa(uidint)
+				var err_url error
+				err_url, post.Uimge = scripts.GetUrl(post.Uimge)
+				if err_url != nil {
+					return posts, err_url, 0
+				}
+				if subject.Valid {
+					str := subject.String
+					post.Subject = strings.Split(str[1:len(str)-1], ",")
+					//去除双引号
+					for i := 0; i < len(post.Subject); i++ {
+						if i == 0 {
+							post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+						} else {
+							post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+						}
+					}
+				} else {
+					post.Subject = []string{"无关键字"}
+				}
+				//判断是否喜欢
+				query = "select liker_id from postlikes where liker_id=? and post_id=?"
+				row := db.QueryRow(query, uid, post.PostID)
+				var like_id int
+				err_scan = row.Scan(&like_id)
+				if err_scan != nil {
+					post.Islike = false
+				}
+				//判断是否收藏
+				query = "select user_id from PostFavorites where user_id=? and post_id=?"
+				row = db.QueryRow(query, uid, post.PostID)
+				var favorite_id int
+				err_scan = row.Scan(&favorite_id)
+				if err_scan != nil {
+					post.Iscollect = false
+				}
+				if len(post.SomeContent) > 300 {
+					post.SomeContent = post.SomeContent[0:300]
+					post.SomeContent = post.SomeContent + "..."
+				}
+				posts = append(posts, post)
+			}
+		} else {
+			query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id AND posts.title like ? order by posts.view_count"
+			rows, err_query := db.Query(query, "%"+key+"%")
+			if err_query != nil {
+				fmt.Println(err_query.Error())
+				return posts, err_query, 0
+			}
+			for rows.Next() {
+				var post Advpost
+				var subject sql.NullString
+				var uidint int
+				err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
+				if err_scan != nil {
+					fmt.Println(err_scan.Error())
+					return posts, err_scan, 0
+				}
+				post.Time = post.Time[0 : len(post.Time)-3]
+				post.Uid = strconv.Itoa(uidint)
+				var err_url error
+				err_url, post.Uimge = scripts.GetUrl(post.Uimge)
+				if err_url != nil {
+					return posts, err_url, 0
+				}
+				if subject.Valid {
+					str := subject.String
+					post.Subject = strings.Split(str[1:len(str)-1], ",")
+					//去除双引号
+					for i := 0; i < len(post.Subject); i++ {
+						if i == 0 {
+							post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+						} else {
+							post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+						}
+					}
+				} else {
+					post.Subject = []string{"无关键字"}
+				}
+				//判断是否喜欢
+				query = "select liker_id from postlikes where liker_id=? and post_id=?"
+				row := db.QueryRow(query, uid, post.PostID)
+				var like_id int
+				err_scan = row.Scan(&like_id)
+				if err_scan != nil {
+					post.Islike = false
+				}
+				//判断是否收藏
+				query = "select user_id from PostFavorites where user_id=? and post_id=?"
+				row = db.QueryRow(query, uid, post.PostID)
+				var favorite_id int
+				err_scan = row.Scan(&favorite_id)
+				if err_scan != nil {
+					post.Iscollect = false
+				}
+				if len(post.SomeContent) > 300 {
+					post.SomeContent = post.SomeContent[0:300]
+					post.SomeContent = post.SomeContent + "..."
+				}
+				posts = append(posts, post)
+			}
+		}
+	}
+	return posts, nil, 1
+}
+
+func SearchPost(c *gin.Context) {
+	pagestr := c.DefaultQuery("page", "-1")
+	isattion := c.DefaultQuery("isattion", "false")
+	uidstr := c.DefaultQuery("uid", "-1")
+	aimuidstr := c.DefaultQuery("aimuid", "-1")
+	page, err_page := strconv.Atoi(pagestr)
+	uid, err_uid := strconv.Atoi(uidstr)
+	aimuid, err_aimuid := strconv.Atoi(aimuidstr)
+	var posts []Advpost
+	if err_page != nil || err_uid != nil || err_aimuid != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"logs": posts, "totalPages": -1})
+		return
+	}
+	if page == -1 || uid == -1 {
+		c.JSON(http.StatusBadRequest, gin.H{"logs": posts, "totalPages": -1})
+		return
+	}
+	var data map[string]string
+	if err_bind := c.ShouldBindJSON(&data); err_bind != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"logs": posts, "totalPages": -1})
+		return
+	}
+	var key = data["name"]
+	posts, err_adv, num := searchStrategy(page, uid, isattion, aimuid, key)
+	if err_adv != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"logs": posts, "totalPages": 0})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"logs": posts, "totalPages": num})
+
 }
