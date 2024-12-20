@@ -59,6 +59,11 @@ func main() {
 		fmt.Println("收到获取更多回复请求")
 		service.GetMoreReply(c)
 	})
+	//搜索帖子
+	r.POST("/api/searchlogs", func(c *gin.Context) {
+		fmt.Println("收到搜索帖子请求")
+		service.SearchPost(c)
+	})
 	//登录
 	r.POST("/api/login", func(c *gin.Context) {
 		fmt.Println("收到登录请求")
