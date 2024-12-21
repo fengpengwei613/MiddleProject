@@ -135,6 +135,11 @@ func main() {
 	// 数据库中users表添加一行status，类型string，表示禁言还是正常的状态，例如alter table `users` add column `status` varchar(15) not null default "normal";
 	r.POST("/api/adm/gagandenclose", service.HandleMute)
 
+	// 获取某个用户的所有粉丝
+	r.GET("/api/per/attioned", service.GetFollowers)
+	// 获取某个用户关注了哪些其他用户
+	r.GET("/api/per/attion", service.GetFollowing)
+
 	// 启动 HTTP 服务器
 	if err := r.Run(":8080"); err != nil {
 		fmt.Println("启动服务器失败:", err)
