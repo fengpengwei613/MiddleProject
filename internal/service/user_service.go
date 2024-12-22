@@ -2,13 +2,16 @@ package service
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"math"
 	"math/rand"
 	"middleproject/internal/model"
 	"middleproject/internal/repository"
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
