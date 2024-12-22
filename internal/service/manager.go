@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
     "database/sql"
-
+    "time"
 	"github.com/gin-gonic/gin"
 )
 
@@ -420,4 +420,81 @@ func BanUser(tx *sql.Tx, uid string, day string, rtype string, id string) error 
 	}
 
 	return nil
+}
+
+
+type UserMuteStatus struct {
+	Status   string `json:"status"`      
+	Lifttime string `json:"lifttime"`    
+	Days     int    `json:"days"`        
+}
+
+//获取用户状态
+func GetUserStatus(c *gin.Context) {
+    db, err := repository.Connect()
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+        return
+    }
+    defer db.Close()
+    
+    uid:= c.Query("uid")
+    if uid == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "缺少uid参数"})
+        return
+    }
+	query := `
+		SELECT type, start_time,end_time
+		FROM usermutes 
+		WHERE user_id = ? AND NOW() BETWEEN start_time AND end_time 
+		ORDER BY start_time DESC LIMIT 1`
+    
+    var muteType int
+	var startTimeBytes, endTimeBytes []byte 
+    err = db.QueryRow(query, uid).Scan(&muteType,&startTimeBytes, &endTimeBytes)
+	if err == sql.ErrNoRows {
+		// 用户没有封禁或禁言记录
+		c.JSON(http.StatusOK, gin.H{
+			"status": "normal",
+		})
+		return
+	} else if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询禁言/封禁记录失败"})
+		return
+	}
+
+    startTime, err := time.Parse("2006-01-02 15:04:05", string(startTimeBytes))
+    if err != nil {
+        fmt.Printf("Error parsing start_time: %v\n", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid start_time"})
+        return
+    }
+
+    endTime, err := time.Parse("2006-01-02 15:04:05", string(endTimeBytes))
+    if err != nil {
+        fmt.Printf("Error parsing end_time: %v\n", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid end_time"})
+        return
+    }
+    days:=int(endTime.Sub(startTime).Hours() / 24)
+    fmt.Println(days)
+	var status string
+	var lifttime string
+
+	if muteType == 0 {
+		// 封禁状态
+		status = "baned"
+		lifttime = endTime.Format("2006-01-02 15:04:05")
+	} else if muteType == 1 {
+		// 禁言状态
+		status = "restricted"
+		lifttime = endTime.Format("2006-01-02 15:04:05")
+	}
+
+	c.JSON(http.StatusOK,UserMuteStatus{
+        Status:   status,
+		Lifttime: lifttime,
+		Days:     days,
+	})
+
 }
