@@ -156,15 +156,15 @@ func main() {
 	//获取举报目标详情
 	r.GET("/api/adm/getreportinfo", service.GetReportInfo)
 
-	//禁言封禁用户
-	// 数据库中users表添加一行status，类型string，表示禁言还是正常的状态，例如alter table `users` add column `status` varchar(15) not null default "normal";
-	r.POST("/api/adm/gagandenclose", service.HandleMute)
-
 	// 获取某个用户的所有粉丝
 	r.GET("/api/per/attioned", service.GetFollowers)
 	// 获取某个用户关注了哪些其他用户
 	r.GET("/api/per/attion", service.GetFollowing)
-     
+	//解除封禁/禁言
+	r.POST("/api/adm/liftBan", service.HandleUnmute)
+	//修改被限制(封禁，禁言)时间
+	r.POST("/api/adm/modLiftDays", service.HandleUpdateMuteTime)
+
 	//获取用户状态
 	r.GET("/api/adm/getUserStatus", service.GetUserStatus)
 	// 启动 HTTP 服务器
