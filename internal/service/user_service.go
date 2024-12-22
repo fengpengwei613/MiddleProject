@@ -352,7 +352,7 @@ func updatePassword(db *sql.DB, mail string, newPassword string) (error, model.U
 	return nil, user, ""
 }
 
-// GetPersonalInfo 获取个人信息函数
+// 获取个人信息函数
 func GetPersonalInfo(db *sql.DB, uid string) (*model.PersonalInfo, error) {
 	query := `
         SELECT user_id, Uname, avatar, phone, email, address, birthday, registration_date, 
@@ -441,141 +441,246 @@ func HandleGetPersonalInfo(c *gin.Context) {
 }
 
 // 更新个人信息
+func UpdatePersonal(db *sql.DB, uid, fieldType, value string) error {
+	var query string
+	var err error
+
+	switch fieldType {
+	case "uname":
+		query = "UPDATE users SET Uname = ? WHERE user_id = ?"
+	case "avatar":
+		query = "UPDATE users SET avatar = ? WHERE user_id = ?"
+	case "phone":
+		query = "UPDATE users SET phone = ? WHERE user_id = ?"
+	case "email":
+		query = "UPDATE users SET email = ? WHERE user_id = ?"
+	case "address":
+		query = "UPDATE users SET address = ? WHERE user_id = ?"
+	case "birthday":
+		query = "UPDATE users SET birthday = ? WHERE user_id = ?"
+	case "introduction":
+		query = "UPDATE users SET introduction = ? WHERE user_id = ?"
+	case "school":
+		query = "UPDATE users SET school = ? WHERE user_id = ?"
+	case "major":
+		query = "UPDATE users SET major = ? WHERE user_id = ?"
+	case "edutime":
+		query = "UPDATE users SET edutime = ? WHERE user_id = ?"
+	case "eduleval":
+		query = "UPDATE users SET eduleval = ? WHERE user_id = ?"
+	case "companyname":
+		query = "UPDATE users SET companyname = ? WHERE user_id = ?"
+	case "positionname":
+		query = "UPDATE users SET positionname = ? WHERE user_id = ?"
+	case "industry":
+		query = "UPDATE users SET industry = ? WHERE user_id = ?"
+	case "interests":
+		interests := strings.Split(value, "，")
+		for i, interest := range interests {
+			interests[i] = strings.TrimSpace(interest)
+		}
+
+		interestsJSON, err := json.Marshal(interests)
+		if err != nil {
+			return fmt.Errorf("转换 interests 为 JSON 字符串失败: %v", err)
+		}
+
+		query = "UPDATE users SET interests = ? WHERE user_id = ?"
+		value = string(interestsJSON) // 将 JSON 字符串传递给数据库
+	default:
+		return fmt.Errorf("无效的更新类型: %s", fieldType)
+	}
+
+	_, err = db.Exec(query, value, uid)
+	if err != nil {
+		return fmt.Errorf("更新失败: %v", err)
+	}
+
+	return nil
+}
+
+// 处理更新用户某个字段的请求
 func UpdatePersonalInfo(c *gin.Context) {
 	db, err := repository.Connect()
 	if err != nil {
-		c.JSON(200, gin.H{
-			"isok":       false,
-			"failreason": "数据库连接失败",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "数据库连接失败"})
+		return
+	}
+	defer db.Close()
+	var request struct {
+		Type  string `json:"type"`
+		Value string `json:"value"`
+		Uid   string `json:"uid"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"failreason": "请求参数错误"})
+		return
+	}
+
+	if request.Type == "" || request.Value == "" || request.Uid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"failreason": "缺少必需的参数"})
+		return
+	}
+
+	err = UpdatePersonal(db, request.Uid, request.Type, request.Value)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"failreason": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"isok":       true,
+		"failreason": "",
+	})
+}
+
+
+// 定义粉丝结构体类型
+type Follower struct {
+	FollowerID  int    `json:"follower_id"`
+	Uid         string `json:"uid"`
+	Avatar      string `json:"avatar"`
+	Uname       string `json:"uname"`
+	IsFollowing bool   `json:"isfollowing"`
+}
+
+// 定义关注结构体类型
+type Following struct {
+	FollowedID int    `json:"followed_id"`
+	Uid        string `json:"uid"`
+	Avatar     string `json:"avatar"`
+	Uname      string `json:"uname"`
+}
+
+// 查粉丝
+func GetFollowers(c *gin.Context) {
+	db, err := repository.Connect()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "数据库连接失败"})
 		return
 	}
 	defer db.Close()
 
-	tx, err := db.Begin()
+	uid := c.DefaultQuery("uid", "")
+	page := c.DefaultQuery("page", "1") // 当前页码，默认为1
+
+	if uid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"failreason": "缺少用户ID"})
+		return
+	}
+
+	pageSize := 10
+	currentPage, _ := strconv.Atoi(page)
+	offset := (currentPage - 1) * pageSize
+
+	var followers []Follower
+
+	query := `
+        SELECT u.user_id, u.avatar, u.uname
+        FROM userfollows uf
+        JOIN users u ON uf.follower_id = u.user_id
+        WHERE uf.followed_id = ? 
+        LIMIT ? OFFSET ?
+    `
+	rows, err := db.Query(query, uid, pageSize, offset)
 	if err != nil {
-		c.JSON(200, gin.H{
-			"isok":       false,
-			"failreason": "数据库事务开始失败",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "查询粉丝失败"})
 		return
 	}
+	defer rows.Close()
 
-	var updateData struct {
-		UserName  string   `json:"userName"`
-		Phone     string   `json:"phone"`
-		Email     string   `json:"email"`
-		Address   string   `json:"address"`
-		Avatar    string   `json:"avatar"`
-		Signature string   `json:"signature"`
-		Birthday  string   `json:"birthday"`
-		Interests []string `json:"interests"`
+	for rows.Next() {
+		var follower Follower
+		if err := rows.Scan(&follower.FollowerID, &follower.Avatar, &follower.Uname); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"failreason": "读取粉丝数据失败"})
+			return
+		}
+		follower.Uid = uid
+		follower.IsFollowing = true
+		followers = append(followers, follower)
 	}
 
-	if err := c.ShouldBindJSON(&updateData); err != nil {
-		tx.Rollback()
-		c.JSON(200, gin.H{
-			"isok":       false,
-			"failreason": "无效的请求数据",
-		})
-		return
-	}
-
-	// 获取用户 ID
-	userID, exists := c.Get("userID")
-	if !exists {
-		tx.Rollback()
-		c.JSON(200, gin.H{
-			"isok":       false,
-			"failreason": "未授权",
-		})
-		return
-	}
-
-	var dbUserID string
-	checkUserQuery := "SELECT user_id FROM users WHERE user_id = ?"
-	err2 := db.QueryRow(checkUserQuery, userID).Scan(&dbUserID)
-	if err2 == sql.ErrNoRows {
-		tx.Rollback()
-		c.JSON(200, gin.H{
-			"isok":       false,
-			"failreason": "用户不存在",
-		})
-		return
-	} else if err2 != nil {
-		tx.Rollback()
-		c.JSON(200, gin.H{
-			"isok":       false,
-			"failreason": "查询失败",
-		})
-		return
-	}
-
-	validColumns := map[string]bool{
-		"userName":  true,
-		"phone":     true,
-		"email":     true,
-		"address":   true,
-		"avatar":    true,
-		"signature": true,
-		"birthday":  true,
-		"interests": true,
-	}
-
-	if !validColumns["userName"] || !validColumns["phone"] || !validColumns["email"] {
-		tx.Rollback()
-		c.JSON(200, gin.H{
-			"isok":       false,
-			"failreason": "无效的字段",
-		})
-		return
-	}
-
-	var interests interface{}
-	if len(updateData.Interests) == 0 {
-		interests = nil
-	} else {
-		interests = updateData.Interests
-	}
-
-	updateQuery := `
-		UPDATE users
-		SET uname = ?, phone = ?, email = ?, address = ?, avatar = ?, signature = ?, birthday = ?, interests = ?
-		WHERE user_id = ?`
-
-	_, err = tx.Exec(updateQuery,
-		updateData.UserName,
-		updateData.Phone,
-		updateData.Email,
-		updateData.Address,
-		updateData.Avatar,
-		updateData.Signature,
-		updateData.Birthday,
-		interests,
-		userID)
-
+	var totalFollowers int
+	queryTotal := `SELECT COUNT(*) FROM userfollows WHERE followed_id = ?`
+	err = db.QueryRow(queryTotal, uid).Scan(&totalFollowers)
 	if err != nil {
-		tx.Rollback()
-		c.JSON(200, gin.H{
-			"isok":       false,
-			"failreason": "更新失败",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "获取粉丝总数失败"})
 		return
 	}
 
-	err = tx.Commit()
+	totalPages := int(math.Ceil(float64(totalFollowers) / float64(pageSize)))
+
+	c.JSON(http.StatusOK, gin.H{
+		"datas":      followers,
+		"totalpages": totalPages,
+	})
+}
+
+// 查关注列表
+func GetFollowing(c *gin.Context) {
+	db, err := repository.Connect()
 	if err != nil {
-		c.JSON(200, gin.H{
-			"isok":       false,
-			"failreason": "事务提交失败",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "数据库连接失败"})
+		return
+	}
+	defer db.Close()
+
+	uid := c.DefaultQuery("uid", "")
+	page := c.DefaultQuery("page", "1") // 当前页码，默认为1
+
+	if uid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"failreason": "缺少用户ID"})
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"isok":    true,
-		"message": "个人信息更新成功",
-		"userID":  userID,
-		"updated": updateData,
+	pageSize := 10
+	currentPage, _ := strconv.Atoi(page)
+	offset := (currentPage - 1) * pageSize
+
+	var followings []Following
+	query := `
+        SELECT u.user_id, u.avatar, u.uname
+        FROM userfollows uf
+        JOIN users u ON uf.followed_id = u.user_id
+        WHERE uf.follower_id = ? 
+        LIMIT ? OFFSET ?
+    `
+	rows, err := db.Query(query, uid, pageSize, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "查询关注失败"})
+		return
+	}
+	defer rows.Close()
+
+	var count int
+	for rows.Next() {
+		count++
+		var following Following
+		if err := rows.Scan(&following.FollowedID, &following.Avatar, &following.Uname); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"failreason": "读取关注数据失败"})
+			return
+		}
+		following.Uid = uid
+		followings = append(followings, following)
+	}
+
+	if count == 0 {
+		c.JSON(http.StatusOK, gin.H{"failreason": "没有找到关注的数据"})
+		return
+	}
+
+	var totalFollowings int
+	queryTotal := `SELECT COUNT(*) FROM userfollows WHERE follower_id = ?`
+	err = db.QueryRow(queryTotal, uid).Scan(&totalFollowings)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "获取关注总数失败"})
+		return
+	}
+
+	totalPages := int(math.Ceil(float64(totalFollowings) / float64(pageSize)))
+
+	c.JSON(http.StatusOK, gin.H{
+		"datas":      followings,
+		"totalpages": totalPages,
 	})
 }

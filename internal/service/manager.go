@@ -298,3 +298,125 @@ func GetReportInfo(c*gin.Context) {
         return
     }
 }
+
+
+
+// 数据库中users表添加一行status，类型string，表示禁言还是正常的状态，例如alter table `users` add column `status` varchar(15) not null default "normal";
+// 禁言接口
+func HandleMute(c *gin.Context) {
+	var req struct {
+		Uid   string `json:"uid"`
+		Day   string `json:"day"`
+		Type  string `json:"type"`
+		Rtype string `json:"rtype"`
+		ID    string `json:"id"`
+	}
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "请求体格式错误"})
+		return
+	}
+
+	if req.Uid == "" || req.Day == "" || req.Type == "" || req.ID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "缺少必要参数"})
+		return
+	}
+
+	if req.Day != "-1" {
+		_, err := strconv.Atoi(req.Day)
+		if err != nil || req.Day == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的天数"})
+			return
+		}
+	}
+
+	if req.Type != "gag" && req.Type != "ban" {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的type值"})
+		return
+	}
+	db, err := repository.Connect()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+		return
+	}
+	defer db.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
+		return
+	}
+
+	if req.Type == "gag" {
+		err = MuteUser(tx, req.Uid, req.Day, req.Rtype, req.ID)
+		if err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err.Error()})
+			return
+		}
+	} else if req.Type == "ban" {
+		err = BanUser(tx, req.Uid, req.Day, req.Rtype, req.ID)
+		if err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err.Error()})
+			return
+		}
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的操作类型"})
+		return
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务提交失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"isok": true, "failreason": ""})
+}
+
+// 禁言用户
+func MuteUser(tx *sql.Tx, uid string, day string, rtype string, id string) error {
+	var endTime string
+	if day == "-1" {
+		endTime = "NULL"
+	} else {
+		endTime = fmt.Sprintf("DATE_ADD(NOW(), INTERVAL %s DAY)", day)
+	}
+
+	if rtype == "log" {
+		_, err := tx.Exec("INSERT INTO usermutes (user_id, start_time, end_time) VALUES (?, NOW(), ?)", uid, endTime)
+		if err != nil {
+			return fmt.Errorf("禁言失败：%s", err.Error())
+		}
+	} else if rtype == "comment" {
+		_, err := tx.Exec("INSERT INTO usermutes (user_id, start_time, end_time) VALUES (?, NOW(), ?)", uid, endTime)
+		if err != nil {
+			return fmt.Errorf("禁言失败：%s", err.Error())
+		}
+	} else {
+		return fmt.Errorf("无效的违规内容类型")
+	}
+
+	return nil
+}
+
+// 用户封号
+func BanUser(tx *sql.Tx, uid string, day string, rtype string, id string) error {
+	if rtype == "log" {
+		_, err := tx.Exec("UPDATE users SET status = 'banned' WHERE user_id = ?", uid)
+		if err != nil {
+			return fmt.Errorf("封号失败：%s", err.Error())
+		}
+	} else if rtype == "comment" {
+		_, err := tx.Exec("UPDATE users SET status = 'banned' WHERE user_id = ?", uid)
+		if err != nil {
+			return fmt.Errorf("封号失败：%s", err.Error())
+		}
+	} else {
+		return fmt.Errorf("无效的违规内容类型")
+	}
+
+	return nil
+}
