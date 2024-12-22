@@ -156,9 +156,6 @@ func main() {
 	//获取举报目标详情
 	r.GET("/api/adm/getreportinfo", service.GetReportInfo)
 
-	//禁言封禁用户
-	// 数据库中users表添加一行status，类型string，表示禁言还是正常的状态，例如alter table `users` add column `status` varchar(15) not null default "normal";
-	r.POST("/api/adm/gagandenclose", service.HandleMute)
 
 	// 获取某个用户的所有粉丝
 	r.GET("/api/per/attioned", service.GetFollowers)
