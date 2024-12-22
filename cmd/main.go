@@ -161,6 +161,10 @@ func main() {
 	r.GET("/api/per/attioned", service.GetFollowers)
 	// 获取某个用户关注了哪些其他用户
 	r.GET("/api/per/attion", service.GetFollowing)
+	//解除封禁/禁言
+	r.POST("/api/adm/liftBan", service.HandleUnmute)
+	//修改被限制(封禁，禁言)时间
+	r.POST("/api/adm/modLiftDays", service.HandleUpdateMuteTime)
      
 	//获取用户状态
 	r.GET("/api/adm/getUserStatus", service.GetUserStatus)
