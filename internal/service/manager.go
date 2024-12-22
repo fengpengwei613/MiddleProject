@@ -380,3 +380,114 @@ func GetUserStatus(c *gin.Context) {
 	})
 
 }
+
+
+
+// 解除禁言封禁接口
+func HandleUnmute(c *gin.Context) {
+	var req struct {
+		Uid string `json:"uid"`
+	}
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "请求参数格式错误"})
+		return
+	}
+
+	if req.Uid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "缺少必要参数"})
+		return
+	}
+
+	db, err := repository.Connect()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+		return
+	}
+	defer db.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
+		return
+	}
+
+	err = UnmuteUser(tx, req.Uid)
+	if err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err.Error()})
+		return
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务提交失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"isok": true, "failreason": ""})
+}
+
+// 解除禁言封禁用户
+func UnmuteUser(tx *sql.Tx, uid string) error {
+	_, err := tx.Exec("DELETE FROM usermutes WHERE user_id = ? AND (type = 0 OR type = 1)", uid)
+	if err != nil {
+		return fmt.Errorf("解除禁言封禁失败：%s", err.Error())
+	}
+
+	return nil
+}
+
+// 增加或减少禁言封禁天数
+func HandleUpdateMuteTime(c *gin.Context) {
+	var req struct {
+		Uid  string `json:"uid"`
+		Days int    `json:"days"`
+	}
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "请求参数格式错误"})
+		return
+	}
+
+	if req.Uid == "" || req.Days == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "缺少必要参数"})
+		return
+	}
+	db, err := repository.Connect()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+		return
+	}
+	defer db.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
+		return
+	}
+
+	err = UpdateMuteTime(tx, req.Uid, req.Days)
+	if err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err.Error()})
+		return
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务提交失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"isok": true, "failreason": ""})
+}
+
+// 增加/减少禁言封禁天数
+func UpdateMuteTime(tx *sql.Tx, uid string, days int) error {
+	query := `UPDATE usermutes SET end_time = DATE_ADD(end_time, INTERVAL ? DAY) WHERE user_id = ?`
+	_, err := tx.Exec(query, days, uid)
+	return err
+}
