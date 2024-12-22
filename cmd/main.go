@@ -139,7 +139,9 @@ func main() {
 	r.GET("/api/per/attioned", service.GetFollowers)
 	// 获取某个用户关注了哪些其他用户
 	r.GET("/api/per/attion", service.GetFollowing)
-
+     
+	//获取用户状态
+	r.GET("/api/adm/getUserStatus", service.GetUserStatus)
 	// 启动 HTTP 服务器
 	if err := r.Run(":8080"); err != nil {
 		fmt.Println("启动服务器失败:", err)
