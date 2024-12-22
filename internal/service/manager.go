@@ -20,13 +20,9 @@ func GetReports(c *gin.Context) {
     }
     defer db.Close()
 
-    // 获取请求参数
-    page := c.DefaultQuery("page", "1")
-    uid := c.Query("uid")
-    if uid == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "uid不能为空"})
-        return
-    }
+
+    page := c.Query("page")
+
 
     // 将 page 转换为整数
     pageInt, err := strconv.Atoi(page)
@@ -38,13 +34,6 @@ func GetReports(c *gin.Context) {
     pageSize := 10// 每页 10 条数据
     startNumber := pageInt * pageSize
 
-    // 查询用户是否存在
-    var count int
-    err = db.QueryRow("SELECT COUNT(*) FROM Users WHERE user_id = ?", uid).Scan(&count)
-    if err != nil || count == 0 {
-        c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": fmt.Sprintf("用户 %s 不存在", uid)})
-        return
-    }
 
     // 获取该用户举报的帖子、评论、回复等数据
     query := `(
@@ -61,7 +50,6 @@ func GetReports(c *gin.Context) {
     FROM PostReports r
     JOIN Posts p ON p.post_id = r.post_id
     JOIN Users u ON u.user_id = p.user_id
-    WHERE r.reporter_id = ?
 )
 UNION
 (
@@ -78,9 +66,7 @@ UNION
     FROM CommentReports r
     JOIN Comments c ON c.comment_id = r.comment_id
     JOIN Users u ON u.user_id = c.commenter_id
-
-    WHERE r.reporter_id = ?
-    AND c.parent_comment_id IS NULL
+    WHERE c.parent_comment_id IS NULL
 )
 UNION
 (
@@ -97,14 +83,13 @@ UNION
     FROM CommentReports r
     JOIN Comments c ON c.comment_id = r.comment_id
     JOIN Users u ON u.user_id = c.commenter_id
-    WHERE r.reporter_id = ?
-    AND c.parent_comment_id IS NOT NULL
+    WHERE c.parent_comment_id IS NOT NULL
 )
 ORDER BY report_time DESC
 LIMIT ?,?
 `
 
-    rows, err := db.Query(query, uid,uid,uid, startNumber, pageSize)
+    rows, err := db.Query(query,startNumber, pageSize)
     if err != nil {
         // 输出详细的错误信息
         fmt.Println("SQL 错误：", err)
@@ -180,11 +165,11 @@ LIMIT ?,?
     countQuery := `
     SELECT COUNT(*) 
     FROM (
-        SELECT r.reporter_id FROM PostReports r WHERE r.reporter_id = ?
+        SELECT r.reporter_id FROM PostReports r
         UNION ALL
-        SELECT r.reporter_id FROM CommentReports r WHERE r.reporter_id = ?
+        SELECT r.reporter_id FROM CommentReports r
     ) AS reports`
-    err = db.QueryRow(countQuery, uid, uid).Scan(&totalCount)
+    err = db.QueryRow(countQuery).Scan(&totalCount)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询总数失败"})
         return
@@ -209,23 +194,10 @@ func GetReportInfo(c*gin.Context) {
     }
     defer db.Close()
 
-    uid:=c.Query("uid")
     type1:=c.Query("type")
     logid:=c.Query("logid")
     commentid:=c.Query("commentid")
     replyid:=c.Query("replyid")
-
-    if uid==""{
-        c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "缺少uid参数"})
-    }
-
-    // 查询用户是否存在
-    var count int
-    err = db.QueryRow("SELECT COUNT(*) FROM Users WHERE user_id = ?", uid).Scan(&count)
-    if err != nil || count == 0 {
-        c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": fmt.Sprintf("用户 %s 不存在", uid)})
-        return
-    }
 
     if type1 == "log" {
         if logid == "" {
@@ -235,6 +207,7 @@ func GetReportInfo(c*gin.Context) {
         var loginfo struct {
             Content string `json:"content"`
             Title string `json:"title"`
+            //Images string `json:"images"`
             User_id string `json:"user_id"`
             Uname string `json:"uname"`
         }
@@ -260,7 +233,21 @@ func GetReportInfo(c*gin.Context) {
             c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询评论失败"})
             return
         }
-        c.JSON(http.StatusOK, gin.H{"isok": true, "commentinfo": commentinfo})
+        query1:="SELECT LEFT(p.content,30) AS content,p.title,p.user_id,u.uname FROM Posts p JOIN Users u ON p.user_id = u.user_id JOIN Comments c ON p.post_id = c.post_id WHERE c.comment_id = ?"
+        var loginfo struct {
+            Content string `json:"content"`
+            Title string `json:"title"`
+            //Images string `json:"images"`
+            User_id string `json:"user_id"`
+            Uname string `json:"uname"`
+        }
+        err = db.QueryRow(query1, commentid).Scan(&loginfo.Content,&loginfo.Title,&loginfo.User_id,&loginfo.Uname)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询评论对应的帖子失败"})
+            return
+        }
+
+        c.JSON(http.StatusOK, gin.H{"isok": true, "loginfo": loginfo,"commentinfo": commentinfo})
     }else if type1 == "reply" {
         if replyid == "" {
             c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "缺少replyid参数"})
@@ -277,7 +264,35 @@ func GetReportInfo(c*gin.Context) {
             c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询回复失败"})
             return
         }
-        c.JSON(http.StatusOK, gin.H{"isok": true, "replyinfo": replyinfo})
+
+        query1:="SELECT LEFT(p.content,30) AS content,p.title,p.user_id,u.uname FROM Posts p JOIN Users u ON p.user_id = u.user_id JOIN Comments c ON p.post_id = c.post_id WHERE c.comment_id = ?"
+        var loginfo struct {
+            Content string `json:"content"`
+            Title string `json:"title"`
+            //Images string `json:"images"`
+            User_id string `json:"user_id"`
+            Uname string `json:"uname"`
+        }
+        err = db.QueryRow(query1, replyid).Scan(&loginfo.Content,&loginfo.Title,&loginfo.User_id,&loginfo.Uname)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询回复对应的帖子失败"})
+            return
+        }
+
+        query2:="SELECT LEFT(c.content,30) AS content,c.commenter_id,u.uname FROM Comments c JOIN Users u ON c.commenter_id  = u.user_id JOIN Comments r ON c.comment_id = r.parent_comment_id WHERE r.comment_id = ?"
+        var commentinfo struct {
+            Content string `json:"content"`
+            Commenter_id string `json:"commenter_id"`
+            Uname string `json:"uname"`
+        }
+        err = db.QueryRow(query2, replyid).Scan(&commentinfo.Content,&commentinfo.Commenter_id,&commentinfo.Uname)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询回复对应的评论失败"})
+            return
+        }
+
+
+        c.JSON(http.StatusOK, gin.H{"isok": true,"loginfo": loginfo,"commentinfo": commentinfo,"replyinfo": replyinfo})
     }else{
         c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "type参数错误"})
         return
