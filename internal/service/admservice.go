@@ -710,7 +710,7 @@ func AdmBan(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
 		return
 	}
-	if typestr == "错误" || rtpyestr == "错误" {
+	if typestr == "错误" || rtypestr == "错误" {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
 		return
 	}
@@ -763,7 +763,8 @@ func AdmBan(c *gin.Context) {
 	}
 	_, err = db.Exec(query, uid, type_r, info)
 	//生成用户反馈
-	is_ok, info := UserFeedback(typestr, day, uid)
+
+	is_ok, info = UserFeedback(typestr, day, uid)
 	if !is_ok {
 		db.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": info})
