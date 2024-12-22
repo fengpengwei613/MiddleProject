@@ -458,7 +458,8 @@ func MakeSysinfo(Htype string, rtype string, id int, day int) (bool, string) {
 		endstr = end.Format("2006-01-02 15:04:05")
 		info = "我们遗憾地通知您，由于您在本网站的行为违反了我们的社区规范，您的账户已被暂时禁言(" + startstr + "-" + endstr + ")。具体原因如下：\n  "
 	} else if Htype == "警告" {
-		info = "我们遗憾地通知您，您在本网站的行为违反了我们的社区规范，我们已对您的行为进行了警告。具体原因如下：\n  "
+		info = "尊敬的用户，您好！您近期发布的内容因为违反社区规则，已被警告，希望您可以注意您的言行。"
+		return true, info
 	}
 	info = info + content + "\n"
 	info = info + "我们重视每一位用户的体验，并致力于维护一个健康、积极的社区环境。请您在未来遵守以下社区行为准则：\n"
@@ -677,6 +678,249 @@ func AdmDeleteReply(c *gin.Context) {
 	query = "INSERT INTO sysinfo (uid, type, content) VALUES (?, ?, ?)"
 	infotype := "内容删除通知"
 	_, err = db.Exec(query, uid, infotype, info)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "系统消息存储失败"})
+		return
+	}
+	err_commit := db.Commit()
+	if err_commit != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务提交失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"isok": true})
+}
+
+// 管理员封禁与禁言
+func AdmBan(c *gin.Context) {
+	reportidstr := c.DefaultQuery("rid", "-1")
+	uidstr := c.DefaultQuery("uid", "-1")
+	typestr := c.DefaultQuery("type", "错误")
+	rtypestr := c.DefaultQuery("rtype", "错误")
+	idstr := c.DefaultQuery("id", "-1")
+	daystr := c.DefaultQuery("day", "-2")
+	ruidstr := c.DefaultQuery("ruid", "-1")
+	reportid, err_rid := strconv.Atoi(reportidstr)
+	uid, err_uid := strconv.Atoi(uidstr)
+	id, err_id := strconv.Atoi(idstr)
+	day, err_day := strconv.Atoi(daystr)
+	ruid, err_ruid := strconv.Atoi(ruidstr)
+	if err_rid != nil || err_uid != nil || err_id != nil || err_day != nil || err_ruid != nil || reportid == -1 || uid == -1 || id == -1 || day == -2 || ruid == -1 {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+	if typestr == "错误" || rtpyestr == "错误" {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+	if day == -1 {
+		day = 1000
+	}
+
+	db_link, err := repository.Connect()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+		return
+	}
+	defer db_link.Close()
+	db, err_tx := db_link.Begin()
+	if err_tx != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
+		return
+	}
+
+	if rtypestr == "log" {
+		query := "UPDATE postreports SET is_handled=1 WHERE report_id = ?"
+		_, err = db.Exec(query, reportid)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "帖子封禁失败"})
+			return
+		}
+	} else if rtypestr == "comment" || rtypestr == "reply" {
+		query := "UPDATE commentreports SET is_handled=1 WHERE report_id = ?"
+		_, err = db.Exec(query, reportid)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "评论封禁失败"})
+			return
+		}
+	}
+	//生成系统消息
+	is_ok, info := MakeSysinfo(typestr, rtypestr, id, day)
+	if !is_ok {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": info})
+		return
+	}
+	query := "INSERT INTO sysinfo (uid, type, content) VALUES (?, ?, ?)"
+	var type_r string
+	if typestr == "封禁" {
+		type_r = "封禁通知"
+	} else if typestr == "禁言" {
+		type_r = "禁言通知"
+	}
+	_, err = db.Exec(query, uid, type_r, info)
+	//生成用户反馈
+	is_ok, info := UserFeedback(typestr, day, uid)
+	if !is_ok {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": info})
+		return
+	}
+	query = "INSERT INTO sysinfo (uid, type, content) VALUES (?, ?, ?)"
+	_, err = db.Exec(query, ruid, "用户反馈", info)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "系统消息存储失败"})
+		return
+	}
+	//插入封禁表
+	query = "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
+	currentTime := time.Now()
+	chinaTime := currentTime.Add(8 * time.Hour)
+	start := chinaTime
+	end := start.Add(time.Duration(day) * 24 * time.Hour)
+	var startstr string
+	var endstr string
+	startstr = start.Format("2006-01-02 15:04:05")
+	endstr = end.Format("2006-01-02 15:04:05")
+	real_type := 0
+	if typestr == "禁言" {
+		real_type = 1
+	}
+	_, err = db.Exec(query, uid, real_type, startstr, endstr)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "封禁表插入失败"})
+		return
+	}
+
+	err_commit := db.Commit()
+	if err_commit != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务提交失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"isok": true})
+
+}
+
+// 管理员对举报不做任何处理
+func AdmIgnore(c *gin.Context) {
+	reportidstr := c.DefaultQuery("rid", "-1")
+	typestr := c.DefaultQuery("type", "错误")
+	reportid, err_rid := strconv.Atoi(reportidstr)
+	if err_rid != nil || reportid == -1 {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+	if typestr == "错误" {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+	db_link, err := repository.Connect()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+		return
+	}
+	defer db_link.Close()
+	db, err_tx := db_link.Begin()
+	if err_tx != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
+		return
+	}
+	if typestr == "log" {
+		query := "UPDATE postreports SET is_handled=1 WHERE report_id = ?"
+		_, err = db.Exec(query, reportid)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "帖子封禁失败"})
+			return
+		}
+	} else if typestr == "comment" {
+		query := "UPDATE commentreports SET is_handled=1 WHERE report_id = ?"
+		_, err = db.Exec(query, reportid)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "评论封禁失败"})
+			return
+		}
+	}
+	err_commit := db.Commit()
+	if err_commit != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务提交失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"isok": true})
+}
+
+// 管理员警告
+func AdmWarn(c *gin.Context) {
+	uidstr := c.DefaultQuery("uid", "-1")
+	content := c.DefaultQuery("content", "")
+	ruidstr := c.DefaultQuery("ruid", "-1")
+	reportidstr := c.DefaultQuery("rid", "-1")
+	typestr := c.DefaultQuery("type", "错误")
+	uid, err_uid := strconv.Atoi(uidstr)
+	ruid, err_ruid := strconv.Atoi(ruidstr)
+	reportid, err_rid := strconv.Atoi(reportidstr)
+	if err_uid != nil || err_ruid != nil || err_rid != nil || uid == -1 || ruid == -1 || reportid == -1 {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+	if typestr == "错误" {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+	db_link, err := repository.Connect()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+		return
+	}
+	defer db_link.Close()
+	db, err_tx := db_link.Begin()
+	if err_tx != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
+		return
+	}
+	//更新举报表
+	if typestr == "log" {
+		query := "UPDATE postreports SET is_handled=1 WHERE report_id = ?"
+		_, err = db.Exec(query, reportid)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "帖子封禁失败"})
+			return
+		}
+	} else if typestr == "comment" {
+		query := "UPDATE commentreports SET is_handled=1 WHERE report_id = ?"
+		_, err = db.Exec(query, reportid)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "评论封禁失败"})
+			return
+		}
+	}
+	//生成系统消息
+	query := "INSERT INTO sysinfo (uid, type, content) VALUES (?, ?, ?)"
+	_, err = db.Exec(query, uid, "警告通知", content)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "系统消息存储失败"})
+		return
+	}
+	//生成用户反馈
+	is_ok, info := UserFeedback("警告", 0, uid)
+	if !is_ok {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": info})
+		return
+	}
+	query = "INSERT INTO sysinfo (uid, type, content) VALUES (?, ?, ?)"
+	_, err = db.Exec(query, ruid, "用户反馈", info)
 	if err != nil {
 		db.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "系统消息存储失败"})
