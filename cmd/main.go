@@ -79,6 +79,32 @@ func main() {
 		fmt.Println("收到获取帖子信息请求")
 		service.GetallPost(c)
 	})
+	//管理员搜索用户
+	r.POST("/api/adm/searchUser", func(c *gin.Context) {
+		fmt.Println("收到搜索用户请求")
+		service.AdmSearchUser(c)
+	})
+	//管理员搜索帖子
+	r.POST("/api/adm/searchLog", func(c *gin.Context) {
+		fmt.Println("收到搜索帖子请求")
+		service.AdmSearchPost(c)
+	})
+	//管理员删除贴子
+	r.POST("/api/adm/admdellog", func(c *gin.Context) {
+		fmt.Println("收到删除帖子请求")
+		service.AdmDeletePost(c)
+	})
+	//管理员删除评论
+	r.POST("/api/adm/admdelcomment", func(c *gin.Context) {
+		fmt.Println("收到删除评论请求")
+		service.AdmDeleteComment(c)
+	})
+	//管理员删除回复
+	r.POST("/api/adm/admdelreply", func(c *gin.Context) {
+		fmt.Println("收到删除回复请求")
+		service.AdmDeleteReply(c)
+	})
+
 	//登录
 	r.POST("/api/login", func(c *gin.Context) {
 		fmt.Println("收到登录请求")
@@ -124,12 +150,11 @@ func main() {
 	r.POST("/api/deletereply", service.DeleteReply)
 	//删除回复
 	r.POST("/api/deletecomment", service.DeleteComment)
-    
 
 	//获取举报目标
 	r.GET("/api/adm/getreports", service.GetReports)
 	//获取举报目标详情
-	r.GET("/api/adm/getreportinfo",service.GetReportInfo)
+	r.GET("/api/adm/getreportinfo", service.GetReportInfo)
 
 	//禁言封禁用户
 	// 数据库中users表添加一行status，类型string，表示禁言还是正常的状态，例如alter table `users` add column `status` varchar(15) not null default "normal";

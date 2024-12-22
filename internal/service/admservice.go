@@ -203,7 +203,7 @@ func GetallPost(c *gin.Context) {
 
 }
 
-func SearchUser(c *gin.Context) {
+func AdmSearchUser(c *gin.Context) {
 	aimUidstr := c.DefaultQuery("aimuid", "-1")
 	aimUname := c.DefaultQuery("aimuname", "")
 	pagestr := c.DefaultQuery("page", "-1")
@@ -246,12 +246,12 @@ func SearchUser(c *gin.Context) {
 			}
 			users = append(users, user)
 		}
-		query := "SELECT count(*) FROM users WHERE Uname like ?"
+		query = "SELECT count(*) FROM users WHERE Uname like ?"
 		row := db.QueryRow(query, "%"+aimUname+"%")
 		var temp int
 		err = row.Scan(&temp)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"logs": posts, "totalPages": 0})
+			c.JSON(http.StatusInternalServerError, gin.H{"logs": users, "totalPages": 0})
 			return
 		}
 		totalPage = temp / 10
@@ -291,7 +291,7 @@ func SearchUser(c *gin.Context) {
 
 }
 
-func SearchPost(c *gin.Context) {
+func AdmSearchPost(c *gin.Context) {
 	aimPostidstr := c.DefaultQuery("aimlogid", "-1")
 	aimPosttitle := c.DefaultQuery("aimtitle", "")
 	pagestr := c.DefaultQuery("page", "-1")
@@ -353,7 +353,7 @@ func SearchPost(c *gin.Context) {
 			}
 			posts = append(posts, post)
 		}
-		query := "SELECT count(*) FROM posts WHERE title like ?"
+		query = "SELECT count(*) FROM posts WHERE title like ?"
 		row := db.QueryRow(query, "%"+aimPosttitle+"%")
 		var temp int
 		err = row.Scan(&temp)
@@ -416,6 +416,9 @@ func SearchPost(c *gin.Context) {
 // 生成封禁禁言警告系统消息(封禁、禁言、警告)，参数：类型，被举报类型（帖子、评论）、类型id(帖子id、评论id)，用户id，天数
 func MakeSysinfo(Htype string, rtype string, id int, day int) (bool, string) {
 	db, err := repository.Connect()
+	if err != nil {
+		return false, "数据库连接失败"
+	}
 	var content string
 	if rtype == "log" {
 		select_query := "SELECT title FROM posts WHERE post_id = ?"
@@ -440,7 +443,7 @@ func MakeSysinfo(Htype string, rtype string, id int, day int) (bool, string) {
 	chinaTime := currentTime.Add(8 * time.Hour)
 	if Htype == "封禁" {
 		start := chinaTime
-		end := start.Add(time.Hour * 24 * day)
+		end := start.Add(time.Duration(day) * 24 * time.Hour)
 		var startstr string
 		var endstr string
 		startstr = start.Format("2006-01-02 15:04:05")
@@ -448,7 +451,7 @@ func MakeSysinfo(Htype string, rtype string, id int, day int) (bool, string) {
 		info = "我们遗憾地通知您，由于您在本网站的行为违反了我们的社区规范，您的账户已被暂时封禁(" + startstr + "-" + endstr + ")。具体原因如下：\n  "
 	} else if Htype == "禁言" {
 		start := chinaTime
-		end := start.Add(time.Hour * 24 * day)
+		end := start.Add(time.Duration(day) * 24 * time.Hour)
 		var startstr string
 		var endstr string
 		startstr = start.Format("2006-01-02 15:04:05")
@@ -480,14 +483,210 @@ func UserFeedback(Htype string, day int, uid int) (bool, string) {
 	var infor string
 	var content string
 	infor = "尊敬的用户，您好！您向我们提出的反馈我们已经处理，处理结果如下：\n  "
+	daystr := strconv.Itoa(day)
 	if Htype == "封禁" {
-		content = uname + "发布的内容因为违反社区规则，已被封禁" + day + "天。"
+		content = uname + "发布的内容因为违反社区规则，已被封禁" + daystr + "天。"
 	} else if Htype == "禁言" {
-		content = uname + "发布的内容因为违反社区规则，已被禁言" + day + "天。"
+		content = uname + "发布的内容因为违反社区规则，已被禁言" + daystr + "天。"
 	} else if Htype == "警告" {
 		content = uname + "发布的内容因为违反社区规则，已被警告。"
 	}
 	infor = infor + content + "\n"
 	infor = infor + "  感谢您对净化社区环境的贡献，我们将继续努力，为您提供更好的服务！"
 	return true, infor
+}
+
+// 内容删除通知
+func ContentDelete(ContentType string, id int) (bool, string) {
+	db, err := repository.Connect()
+	if err != nil {
+		return false, "数据库连接失败"
+	}
+	defer db.Close()
+	var infor string
+	if ContentType == "log" {
+		var title string
+		select_query := "SELECT title FROM posts WHERE post_id = ?"
+		row := db.QueryRow(select_query, id)
+		err = row.Scan(&title)
+		if err != nil {
+			return false, "查询帖子失败"
+		}
+		infor = "尊敬的用户，您好！您发布的帖子《" + title + "》因为违反社区规则，已被社区管理员删除。"
+	} else if ContentType == "comment" || ContentType == "reply" {
+		var content string
+		select_query := "SELECT content FROM comments WHERE comment_id = ?"
+		row := db.QueryRow(select_query, id)
+		err = row.Scan(&content)
+		if err != nil {
+			return false, "查询评论失败"
+		}
+		infor = "尊敬的用户，您好！您发布的评论《" + content + "》因为违反社区规则，已被社区管理员删除。"
+	}
+	infor = infor + "创建绿色网络环境，还需我们共同努力！"
+	return true, infor
+}
+
+// 管理员删除帖子
+func AdmDeletePost(c *gin.Context) {
+	uidstr := c.DefaultQuery("uid", "-1")
+	postidstr := c.DefaultQuery("logid", "-1")
+	uid, err_uid := strconv.Atoi(uidstr)
+	postid, err_pid := strconv.Atoi(postidstr)
+	if err_uid != nil || err_pid != nil || uid == -1 || postid == -1 {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+	db_link, err := repository.Connect()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+		return
+	}
+	defer db_link.Close()
+	db, err_tx := db_link.Begin()
+	if err_tx != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
+		return
+	}
+	query := "DELETE FROM posts WHERE post_id = ?"
+	_, err = db.Exec(query, postid)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "帖子删除失败"})
+		return
+	}
+	//将删除内容通知存储到系统消息表
+	isok, info := ContentDelete("log", postid)
+	if !isok {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": info})
+		return
+	}
+	query = "INSERT INTO sysinfo (uid, type, content) VALUES (?, ?, ?)"
+	infotype := "内容删除通知"
+	_, err = db.Exec(query, uid, infotype, info)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "系统消息存储失败"})
+		return
+	}
+	err_commit := db.Commit()
+	if err_commit != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务提交失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"isok": true})
+
+}
+
+// 管理员删除评论
+func AdmDeleteComment(c *gin.Context) {
+	uidstr := c.DefaultQuery("uid", "-1")
+	commentidstr := c.DefaultQuery("comid", "-1")
+	uid, err_uid := strconv.Atoi(uidstr)
+	commentid, err_cid := strconv.Atoi(commentidstr)
+	if err_uid != nil || err_cid != nil || uid == -1 || commentid == -1 {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+	db_link, err := repository.Connect()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+		return
+	}
+	defer db_link.Close()
+	db, err_tx := db_link.Begin()
+	if err_tx != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
+		return
+	}
+	query := "DELETE FROM comments WHERE comment_id = ?"
+	_, err = db.Exec(query, commentid)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "评论删除失败"})
+		return
+	}
+	//删除该评论的所有恢复
+	query = "DELETE FROM comments WHERE parent_comment_id = ?"
+	_, err = db.Exec(query, commentid)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "回复删除失败"})
+		return
+	}
+
+	isok, info := ContentDelete("comment", commentid)
+	if !isok {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": info})
+		return
+	}
+	query = "INSERT INTO sysinfo (uid, type, content) VALUES (?, ?, ?)"
+	infotype := "内容删除通知"
+	_, err = db.Exec(query, uid, infotype, info)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "系统消息存储失败"})
+		return
+	}
+	err_commit := db.Commit()
+	if err_commit != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务提交失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"isok": true})
+}
+
+// 管理员删除回复
+func AdmDeleteReply(c *gin.Context) {
+	uidstr := c.DefaultQuery("uid", "-1")
+	replyidstr := c.DefaultQuery("replyid", "-1")
+	uid, err_uid := strconv.Atoi(uidstr)
+	replyid, err_rid := strconv.Atoi(replyidstr)
+	if err_uid != nil || err_rid != nil || uid == -1 || replyid == -1 {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+	db_link, err := repository.Connect()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+		return
+	}
+	defer db_link.Close()
+	db, err_tx := db_link.Begin()
+	if err_tx != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
+		return
+	}
+	query := "DELETE FROM comments WHERE comment_id = ?"
+	_, err = db.Exec(query, replyid)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "回复删除失败"})
+		return
+	}
+	isok, info := ContentDelete("reply", replyid)
+	if !isok {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": info})
+		return
+	}
+	query = "INSERT INTO sysinfo (uid, type, content) VALUES (?, ?, ?)"
+	infotype := "内容删除通知"
+	_, err = db.Exec(query, uid, infotype, info)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "系统消息存储失败"})
+		return
+	}
+	err_commit := db.Commit()
+	if err_commit != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务提交失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"isok": true})
 }
