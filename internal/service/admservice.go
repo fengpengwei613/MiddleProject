@@ -891,7 +891,7 @@ func AdmWarn(c *gin.Context) {
 	var dataid int
 	//更新举报表
 	if typestr == "log" {
-		
+
 		query := "UPDATE postreports SET is_handled=1 WHERE report_id = ?"
 		_, err = db.Exec(query, reportid)
 		if err != nil {
@@ -967,7 +967,7 @@ func AdmWarn(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "评论删除失败"})
 			return
 		}
-		
+	}
 	err_commit := db.Commit()
 	if err_commit != nil {
 		db.Rollback()
