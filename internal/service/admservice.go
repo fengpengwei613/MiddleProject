@@ -609,14 +609,6 @@ func AdmDeleteComment(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "评论删除失败"})
 		return
 	}
-	//删除该评论的所有恢复
-	query = "DELETE FROM comments WHERE parent_comment_id = ?"
-	_, err = db.Exec(query, commentid)
-	if err != nil {
-		db.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "回复删除失败"})
-		return
-	}
 
 	isok, info := ContentDelete("comment", commentid)
 	if !isok {
@@ -729,7 +721,7 @@ func AdmBan(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
 		return
 	}
-
+	var dataid int
 	if rtypestr == "log" {
 		query := "UPDATE postreports SET is_handled=1 WHERE report_id = ?"
 		_, err = db.Exec(query, reportid)
@@ -738,12 +730,31 @@ func AdmBan(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "帖子封禁失败"})
 			return
 		}
+		//查询帖子id
+		query = "SELECT post_id FROM postreports WHERE report_id = ?"
+		row := db.QueryRow(query, reportid)
+		err = row.Scan(&dataid)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子id失败"})
+			return
+		}
+
 	} else if rtypestr == "comment" || rtypestr == "reply" {
 		query := "UPDATE commentreports SET is_handled=1 WHERE report_id = ?"
 		_, err = db.Exec(query, reportid)
 		if err != nil {
 			db.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "评论封禁失败"})
+			return
+		}
+		//查询评论id
+		query = "SELECT comment_id FROM commentreports WHERE report_id = ?"
+		row := db.QueryRow(query, reportid)
+		err = row.Scan(&dataid)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询评论id失败"})
 			return
 		}
 	}
@@ -797,7 +808,23 @@ func AdmBan(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "封禁表插入失败"})
 		return
 	}
-
+	if rtypestr == "log" {
+		query = "DELETE FROM posts WHERE post_id = ?"
+		_, err = db.Exec(query, dataid)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "帖子删除失败"})
+			return
+		}
+	} else if rtypestr == "comment" || rtypestr == "reply" {
+		query = "DELETE FROM comments WHERE comment_id = ?"
+		_, err = db.Exec(query, dataid)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "评论删除失败"})
+			return
+		}
+	}
 	err_commit := db.Commit()
 	if err_commit != nil {
 		db.Rollback()
