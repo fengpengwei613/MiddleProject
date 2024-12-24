@@ -360,11 +360,12 @@ func GetPersonalInfo(db *sql.DB, uid string) (*model.PersonalInfo, error) {
 	query := `
         SELECT user_id, Uname, avatar, phone, email, address, birthday, registration_date, 
                sex, introduction, school, major, edutime, eduleval, companyname, positionname, 
-               industry, interests, likenum, attionnum, fansnum
+               industry, interests, likenum, fansnum
         FROM users WHERE user_id = ?`
 
 	info := &model.PersonalInfo{}
 	var (
+		avatarNull       sql.NullString
 		phoneNull        sql.NullString
 		emailNull        sql.NullString
 		addressNull      sql.NullString
@@ -381,14 +382,13 @@ func GetPersonalInfo(db *sql.DB, uid string) (*model.PersonalInfo, error) {
 		industryNull     sql.NullString
 		interestsNull    sql.NullString
 		likenumNull      sql.NullInt64
-		attionnumNull    sql.NullInt64
 		fansnumNull      sql.NullInt64
 	)
 
 	err := db.QueryRow(query, uid).Scan(
-		&info.UserID, &info.UserName, &info.UImage, &phoneNull, &emailNull, &addressNull, &birthdayNull, &registrationDate,
+		&info.UserID, &info.UserName, &avatarNull, &phoneNull, &emailNull, &addressNull, &birthdayNull, &registrationDate,
 		&sexNull, &introductionNull, &schoolNull, &majorNull, &edutimeNull, &edulevelNull, &companyNull, &positionNull,
-		&industryNull, &interestsNull, &likenumNull, &attionnumNull, &fansnumNull,
+		&industryNull, &interestsNull, &likenumNull, &fansnumNull,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -397,6 +397,15 @@ func GetPersonalInfo(db *sql.DB, uid string) (*model.PersonalInfo, error) {
 		return nil, fmt.Errorf("数据库查询失败: %v", err)
 	}
 
+	if avatarNull.Valid {
+		err, signedURL := scripts.GetUrl(avatarNull.String)
+		if err != nil {
+			return nil, fmt.Errorf("获取头像URL失败: %v", err)
+		}
+		info.UImage = signedURL
+	} else {
+		info.UImage = ""
+	}
 	info.Phone = phoneNull.String
 	info.Mail = emailNull.String
 	info.Address = addressNull.String
@@ -411,9 +420,17 @@ func GetPersonalInfo(db *sql.DB, uid string) (*model.PersonalInfo, error) {
 	info.CompanyName = companyNull.String
 	info.PositionName = positionNull.String
 	info.Industry = industryNull.String
-	info.Interests = []string{interestsNull.String}
+	if interestsNull.Valid {
+		var interestsArray []string
+		err := json.Unmarshal([]byte(interestsNull.String), &interestsArray)
+		if err != nil {
+			return nil, fmt.Errorf("解析兴趣字段失败: %v", err)
+		}
+		info.Interests = interestsArray 
+	} else {
+		info.Interests = []string{}
+	}
 	info.LikeNum = strconv.FormatInt(likenumNull.Int64, 10)
-	info.AttionNum = strconv.FormatInt(attionnumNull.Int64, 10)
 	info.FansNum = strconv.FormatInt(fansnumNull.Int64, 10)
 
 	return info, nil
@@ -421,7 +438,7 @@ func GetPersonalInfo(db *sql.DB, uid string) (*model.PersonalInfo, error) {
 
 // 处理获取个人信息的请求
 func HandleGetPersonalInfo(c *gin.Context) {
-	db, err := repository.Connect() 
+	db, err := repository.Connect()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "数据库连接失败"})
 		return
@@ -440,9 +457,18 @@ func HandleGetPersonalInfo(c *gin.Context) {
 		return
 	}
 
+	interestsFormatted := ""
+	for _, interest := range personalInfo.Interests {
+		interestsFormatted += fmt.Sprintf("\"%s\",\n", interest)
+	}
+	if len(interestsFormatted) > 0 {
+		interestsFormatted = interestsFormatted[:len(interestsFormatted)-2] // 移除最后的逗号和换行符
+	}
+
+	personalInfo.Interests = []string{interestsFormatted}
+
 	c.JSON(http.StatusOK, personalInfo)
 }
-
 // 更新个人信息
 func UpdatePersonal(db *sql.DB, uid, fieldType, value string) error {
 	var query string
