@@ -1,0 +1,40 @@
+# Working directory
+root = "D:/桌面/back_end/MiddleProject"
+tmp_dir = "tmp"
+
+[build]
+# 编译命令
+cmd = "go build -o ./tmp/main.exe cmd/main.go"
+# 编译后的二进制文件路径
+bin = "tmp/main.exe"
+
+# 监视的文件类型
+include_ext = ["go"]
+
+# 忽略的目录
+exclude_dir = ["assets", "tmp", "vendor"]
+
+# 日志输出配置
+log = "air.log"
+
+# 构建后延迟 (ms)
+delay = 500
+
+[log]
+# 日志时间显示
+time = true
+
+[color]
+# 日志颜色配置
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[misc]
+# 删除 tmp 目录在退出时
+clean_on_exit = true
+
+[screen]
+# 清除控制台屏幕内容
+clear_on_rebuild = true
