@@ -9,4 +9,5 @@ type ReportRequest struct {
     ComID string `json:"commentid,omitempty"`
     ReplyID string `json:"replyid,omitempty"`
 	Reason string `json:"reason"`
+    Type  string `json:"type"`
 }

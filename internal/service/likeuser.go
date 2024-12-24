@@ -3,7 +3,6 @@ package service
 import (
 	"database/sql"
 	"fmt"
-	"middleproject/internal/model"
 	"middleproject/internal/repository"
 	"net/http"
 	"time"
@@ -259,13 +258,13 @@ func LikeReply(c *gin.Context) {
 }
 
 // 举报评论/回复
-func ReportComment(tx *sql.Tx, uid, comID, reason string) error {
+func ReportComment(tx *sql.Tx, uid, comID, reason string,type1 string,) error {
 	if comID == "" {
 		return fmt.Errorf("评论或回复ID不能为空")
 	}
 
-	query := "INSERT INTO CommentReports (reporter_id,comment_id,reason,report_time) VALUES (?,?,?,?)"
-	_, err := tx.Exec(query, uid, comID, reason, time.Now())
+	query := "INSERT INTO CommentReports (reporter_id,comment_id,reason,report_time,rpttype) VALUES (?,?,?,?,?)"
+	_, err := tx.Exec(query, uid, comID, reason, time.Now(),type1)
 	if err != nil {
 		return fmt.Errorf("举报失败:sql语句插入失败")
 	}
@@ -273,13 +272,14 @@ func ReportComment(tx *sql.Tx, uid, comID, reason string) error {
 }
 
 // 举报帖子
-func ReportPost(tx *sql.Tx, uid, postID, reason string) error {
+func ReportPost(tx *sql.Tx, uid, postID, reason string,type1 string) error {
 	if postID == "" {
 		return fmt.Errorf("帖子ID不能为空")
 	}
-	query := "INSERT INTO PostReports (reporter_id,post_id,reason,report_time) VALUES (?,?,?,?)"
-	_, err := tx.Exec(query, uid, postID, reason, time.Now())
+	query := "INSERT INTO PostReports (reporter_id,post_id,reason,report_time,rpttype) VALUES (?,?,?,?,?)"
+	_, err := tx.Exec(query, uid, postID, reason, time.Now(),type1)
 	if err != nil {
+		fmt.Print(err)
 		return fmt.Errorf("举报失败：sql插入举报帖子失败")
 	}
 	return nil
@@ -287,20 +287,20 @@ func ReportPost(tx *sql.Tx, uid, postID, reason string) error {
 
 // 举报接口
 func HandleReport(c *gin.Context) {
-	reportType := c.Query("type")
-	uid := c.Query("uid")
+	var reportData map[string]interface{}
 
-	if reportType == "" || uid == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "缺少参数"})
-		return
-	}
-
-	var req model.ReportRequest
-	err := c.ShouldBindJSON(&req)
-	if err != nil {
+	if err := c.ShouldBindJSON(&reportData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "请求体格式错误"})
 		return
 	}
+    reporttarget:=reportData["reporttarget"].(string)
+	uid:=reportData["uid"].(string)
+	logid:=reportData["logid"].(string)
+	commentid:=reportData["commentid"].(string)
+	replyid:=reportData["replyid"].(string)
+	reason:=reportData["reason"].(string)
+	type1:=reportData["type"].(string)
+
 	db, err := repository.Connect()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
@@ -315,21 +315,21 @@ func HandleReport(c *gin.Context) {
 		return
 	}
 
-	if reportType == "log" {
-		err = ReportPost(tx, uid, req.LogID, req.Reason)
+	if reporttarget == "log" {
+		err = ReportPost(tx, uid, logid, reason,type1)
 		if err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err.Error()})
 			return
 		}
-	} else if reportType == "reply" {
-		err = ReportComment(tx, uid, req.ReplyID, req.Reason)
+	} else if reporttarget == "reply" {
+		err = ReportComment(tx, uid, replyid, reason,type1)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err.Error()})
 			return
 		}
-	} else if reportType == "comment" {
-		err = ReportComment(tx, uid, req.ComID, req.Reason)
+	} else if reporttarget == "comment" {
+		err = ReportComment(tx, uid, commentid, reason,type1)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err.Error()})
 			return
