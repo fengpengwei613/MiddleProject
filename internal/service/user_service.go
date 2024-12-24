@@ -311,13 +311,17 @@ func ForgotPassword(c *gin.Context) {
 		c.JSON(500, gin.H{"isok": false, "failreason": result})
 		return
 	}
-
+	err, avatarURL := scripts.GetUrl(user.Avatar)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "获取头像签名失败"})
+		return
+	}
 	c.JSON(200, gin.H{
 		"isok":       true,
 		"failreason": "",
 		"uid":        user.UserID,
 		"uname":      user.Uname,
-		"uimage":     user.Avatar,
+		"uimage":     avatarURL,
 	})
 }
 
