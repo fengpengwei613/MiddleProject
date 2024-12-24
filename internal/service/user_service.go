@@ -426,7 +426,7 @@ func GetPersonalInfo(db *sql.DB, uid string) (*model.PersonalInfo, error) {
 		if err != nil {
 			return nil, fmt.Errorf("解析兴趣字段失败: %v", err)
 		}
-		info.Interests = interestsArray 
+		info.Interests = interestsArray
 	} else {
 		info.Interests = []string{}
 	}
@@ -469,6 +469,7 @@ func HandleGetPersonalInfo(c *gin.Context) {
 
 	c.JSON(http.StatusOK, personalInfo)
 }
+
 // 更新个人信息
 func UpdatePersonal(db *sql.DB, uid, fieldType, value string) error {
 	var query string
