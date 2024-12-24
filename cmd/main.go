@@ -119,6 +119,11 @@ func main() {
 		fmt.Println("收到忽略举报请求")
 		service.AdmIgnore(c)
 	})
+	//用户获取系统信息
+	r.GET("/api/adm/getmessage", func(c *gin.Context) {
+		fmt.Println("收到获取系统信息请求")
+		service.Getsysinfo(c)
+	})
 	//登录
 	r.POST("/api/login", func(c *gin.Context) {
 		fmt.Println("收到登录请求")
