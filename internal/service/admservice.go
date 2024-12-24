@@ -887,13 +887,24 @@ func AdmWarn(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
 		return
 	}
+	//删除帖子/评论
+	var dataid int
 	//更新举报表
 	if typestr == "log" {
+		
 		query := "UPDATE postreports SET is_handled=1 WHERE report_id = ?"
 		_, err = db.Exec(query, reportid)
 		if err != nil {
 			db.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "帖子封禁失败"})
+			return
+		}
+		query_select := "SELECT post_id FROM postreports WHERE report_id = ?"
+		row := db.QueryRow(query_select, reportid)
+		err = row.Scan(&dataid)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "帖子id获取失败"})
 			return
 		}
 	} else if typestr == "comment" {
@@ -904,6 +915,18 @@ func AdmWarn(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "评论封禁失败"})
 			return
 		}
+		query_select := "SELECT comment_id FROM commentreports WHERE report_id = ?"
+		row := db.QueryRow(query_select, reportid)
+		err = row.Scan(&dataid)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "评论id获取失败"})
+			return
+		}
+	} else {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "类型错误"})
+		return
 	}
 	//生成系统消息
 	query := "INSERT INTO sysinfo (uid, type, content) VALUES (?, ?, ?)"
@@ -927,6 +950,24 @@ func AdmWarn(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "系统消息存储失败"})
 		return
 	}
+	//删除帖子/评论
+	if typestr == "log" {
+		query = "DELETE FROM posts WHERE post_id = ?"
+		_, err = db.Exec(query, dataid)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "帖子删除失败"})
+			return
+		}
+	} else if typestr == "comment" {
+		query = "DELETE FROM comments WHERE comment_id = ?"
+		_, err = db.Exec(query, dataid)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "评论删除失败"})
+			return
+		}
+		
 	err_commit := db.Commit()
 	if err_commit != nil {
 		db.Rollback()

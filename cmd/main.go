@@ -104,7 +104,21 @@ func main() {
 		fmt.Println("收到删除回复请求")
 		service.AdmDeleteReply(c)
 	})
-
+	//管理员封禁禁言用户
+	r.POST("/api/adm/gagandenclose", func(c *gin.Context) {
+		fmt.Println("收到封禁禁言用户请求")
+		service.AdmBan(c)
+	})
+	//管理员警告用户
+	r.POST("/api/adm/sendinfo", func(c *gin.Context) {
+		fmt.Println("收到警告用户请求")
+		service.AdmWarn(c)
+	})
+	//管理员忽略举报
+	r.POST("/api/adm/reportok", func(c *gin.Context) {
+		fmt.Println("收到忽略举报请求")
+		service.AdmIgnore(c)
+	})
 	//登录
 	r.POST("/api/login", func(c *gin.Context) {
 		fmt.Println("收到登录请求")
