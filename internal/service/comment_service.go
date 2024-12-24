@@ -147,28 +147,19 @@ func GetMoreReply(c *gin.Context) {
 
 // 删除评论接口
 func DeleteComment(c *gin.Context) {
-	var request struct {
-		UID   string `json:"uid"`
-		LogID string `json:"logid"`
-		ComID string `json:"comid"`
-	}
-
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
-		return
-	}
-	uid, err := strconv.Atoi(request.UID)
+	uid, err := strconv.Atoi(c.Query("uid"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的用户ID"})
 		return
 	}
 
-	commentID, err := strconv.Atoi(request.ComID)
+	commentID, err := strconv.Atoi(c.Query("comid"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的评论ID"})
 		return
 	}
-	postID, err := strconv.Atoi(request.LogID)
+
+	postID, err := strconv.Atoi(c.Query("logid"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的帖子ID"})
 		return
@@ -185,37 +176,25 @@ func DeleteComment(c *gin.Context) {
 
 // 删除回复接口
 func DeleteReply(c *gin.Context) {
-	var request struct {
-		UID     string `json:"uid"`
-		LogID   string `json:"logid"`
-		ComID   string `json:"comid"`
-		ReplyID string `json:"replyid"`
-	}
-
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
-		return
-	}
-
-	uid, err := strconv.Atoi(request.UID)
+	uid, err := strconv.Atoi(c.Query("uid"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的用户ID"})
 		return
 	}
 
-	postID, err := strconv.Atoi(request.LogID)
+	postID, err := strconv.Atoi(c.Query("logid"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的帖子ID"})
 		return
 	}
 
-	commentID, err := strconv.Atoi(request.ComID)
+	commentID, err := strconv.Atoi(c.Query("comid"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的评论ID"})
 		return
 	}
 
-	replyID, err := strconv.Atoi(request.ReplyID)
+	replyID, err := strconv.Atoi(c.Query("replyid"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的回复ID"})
 		return
