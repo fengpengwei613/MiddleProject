@@ -291,12 +291,26 @@ func ForgotPassword(c *gin.Context) {
 		c.JSON(500, gin.H{"isok": false, "failreason": "连接数据库失败"})
 		return
 	}
-
 	var requestData model.ResetPasswordReq
+	if requestData.Mail == "" || requestData.Code == "" || requestData.Password == "" {
+		c.JSON(400, gin.H{"isok": false, "failreason": "邮箱、验证码或新密码不能为空"})
+		return
+	}
 	if err := c.ShouldBindJSON(&requestData); err != nil {
 		c.JSON(400, gin.H{"isok": false, "failreason": "绑定请求数据失败"})
 		return
 	}
+	var userExists bool
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE email = ?)", requestData.Mail).Scan(&userExists)
+	if err != nil {
+		c.JSON(500, gin.H{"isok": false, "failreason": "检查用户是否存在时发生错误"})
+		return
+	}
+	if !userExists {
+		c.JSON(400, gin.H{"isok": false, "failreason": "用户不存在"})
+		return
+	}
+
 	query := "SELECT code FROM verificationcodes WHERE email = ? AND expiration > NOW() ORDER BY expiration DESC LIMIT 1"
 	row := db.QueryRow(query, requestData.Mail)
 	var code string
@@ -324,7 +338,6 @@ func ForgotPassword(c *gin.Context) {
 		"uimage":     avatarURL,
 	})
 }
-
 // 更新密码
 func updatePassword(db *sql.DB, mail string, newPassword string) (error, model.User, string) {
 
