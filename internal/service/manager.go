@@ -421,6 +421,7 @@ func GetUserStatus(c *gin.Context) {
 
 }
 
+
 // 解除禁言封禁接口
 func HandleUnmute(c *gin.Context) {
 	var req struct {
@@ -444,6 +445,29 @@ func HandleUnmute(c *gin.Context) {
 		return
 	}
 	defer db.Close()
+
+	var exists bool
+	query := "SELECT EXISTS(SELECT 1 FROM users WHERE user_id = ?)"
+	err = db.QueryRow(query, req.Uid).Scan(&exists)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "检查用户是否存在失败"})
+		return
+	}
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "用户不存在"})
+		return
+	}
+
+	var muteExists bool
+	err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM usermutes WHERE user_id = ?)", req.Uid).Scan(&muteExists)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "检查用户封禁信息失败"})
+		return
+	}
+	if !muteExists {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "用户没有被封禁或禁言"})
+		return
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -501,6 +525,29 @@ func HandleUpdateMuteTime(c *gin.Context) {
 	}
 	defer db.Close()
 
+	var exists bool
+	query := "SELECT EXISTS(SELECT 1 FROM users WHERE user_id = ?)"
+	err = db.QueryRow(query, req.Uid).Scan(&exists)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "检查用户是否存在失败"})
+		return
+	}
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "用户不存在"})
+		return
+	}
+
+	var muteExists bool
+	err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM usermutes WHERE user_id = ?)", req.Uid).Scan(&muteExists)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "检查用户封禁信息失败"})
+		return
+	}
+	if !muteExists {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "用户没有被封禁或禁言"})
+		return
+	}
+
 	tx, err := db.Begin()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
@@ -523,7 +570,6 @@ func HandleUpdateMuteTime(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"isok": true, "failreason": ""})
 }
 
-// 增加/减少禁言封禁天数
 func UpdateMuteTime(tx *sql.Tx, uid string, days int) error {
 	query := `UPDATE usermutes SET end_time = DATE_ADD(end_time, INTERVAL ? DAY) WHERE user_id = ?`
 	_, err := tx.Exec(query, days, uid)
