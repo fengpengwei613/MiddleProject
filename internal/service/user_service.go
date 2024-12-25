@@ -292,10 +292,6 @@ func ForgotPassword(c *gin.Context) {
 		return
 	}
 	var requestData model.ResetPasswordReq
-	if requestData.Mail == "" || requestData.Code == "" || requestData.Password == "" {
-		c.JSON(400, gin.H{"isok": false, "failreason": "邮箱、验证码或新密码不能为空"})
-		return
-	}
 	if err := c.ShouldBindJSON(&requestData); err != nil {
 		c.JSON(400, gin.H{"isok": false, "failreason": "绑定请求数据失败"})
 		return
