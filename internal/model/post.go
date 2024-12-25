@@ -216,7 +216,6 @@ func LikeComment(userID, commentID int) (error, string) {
 	}
 }
 
-
 // 删除帖子
 func DeletePostByUser(postID int, uid int) (error, string) {
 	db_link, err := repository.Connect()
@@ -225,8 +224,17 @@ func DeletePostByUser(postID int, uid int) (error, string) {
 	}
 	defer db_link.Close()
 
+	var exists bool
+	query := "SELECT EXISTS(SELECT 1 FROM posts WHERE post_id = ?)"
+	err = db_link.QueryRow(query, postID).Scan(&exists)
+	if err != nil {
+		return err, "检查帖子是否存在失败"
+	}
+	if !exists {
+		return fmt.Errorf("帖子不存在"), "帖子不存在"
+	}
 	var userPermission int
-	query := "SELECT permission FROM users WHERE user_id = ?"
+	query = "SELECT peimission FROM users WHERE user_id = ?"
 	err = db_link.QueryRow(query, uid).Scan(&userPermission)
 	if err != nil {
 		return err, "获取用户权限失败"
