@@ -672,8 +672,23 @@ func GetFollowers(c *gin.Context) {
 	}
 	defer db.Close()
 
-	uid := c.DefaultQuery("uid", "")
-	page := c.DefaultQuery("page", "1") // 当前页码，默认为1
+	uid := c.Query("uid")
+	if uid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"failreason": "缺少用户ID"})
+		return
+	}
+
+	var exists bool
+	err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE user_id = ?)", uid).Scan(&exists)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "检查用户是否存在时发生错误"})
+		return
+	}
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"failreason": "用户不存在"})
+		return
+	}
+	page := c.DefaultQuery("page", "1")
 
 	if uid == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"failreason": "缺少用户ID"})
@@ -746,7 +761,21 @@ func GetFollowing(c *gin.Context) {
 	}
 	defer db.Close()
 
-	uid := c.DefaultQuery("uid", "")
+	uid := c.Query("uid")
+	if uid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"failreason": "缺少用户ID"})
+		return
+	}
+	var exists bool
+	err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE user_id = ?)", uid).Scan(&exists)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "检查用户是否存在时发生错误"})
+		return
+	}
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"failreason": "用户不存在"})
+		return
+	}
 	page := c.DefaultQuery("page", "1") // 当前页码，默认为1
 
 	if uid == "" {
