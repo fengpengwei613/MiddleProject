@@ -368,12 +368,13 @@ func updatePassword(db *sql.DB, mail string, newPassword string) (error, model.U
 	return nil, user, ""
 }
 
+
 // 获取个人信息函数
 func GetPersonalInfo(db *sql.DB, uid string, requestid string) (*model.PersonalInfo, error) {
 	query := `
         SELECT user_id, Uname, avatar, phone, email, address, birthday, registration_date, 
                sex, introduction, school, major, edutime, eduleval, companyname, positionname, 
-               industry, interests, likenum, fansnum
+               industry, interests, likenum, attionnum, fansnum
         FROM users WHERE user_id = ?`
 
 	info := &model.PersonalInfo{}
@@ -395,13 +396,14 @@ func GetPersonalInfo(db *sql.DB, uid string, requestid string) (*model.PersonalI
 		industryNull     sql.NullString
 		interestsNull    sql.NullString
 		likenumNull      sql.NullInt64
+		attionumNull     sql.NullInt64
 		fansnumNull      sql.NullInt64
 	)
 
 	err := db.QueryRow(query, uid).Scan(
 		&info.UserID, &info.UserName, &avatarNull, &phoneNull, &emailNull, &addressNull, &birthdayNull, &registrationDate,
 		&sexNull, &introductionNull, &schoolNull, &majorNull, &edutimeNull, &edulevelNull, &companyNull, &positionNull,
-		&industryNull, &interestsNull, &likenumNull, &fansnumNull,
+		&industryNull, &interestsNull, &likenumNull, &attionumNull, &fansnumNull,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -452,6 +454,7 @@ func GetPersonalInfo(db *sql.DB, uid string, requestid string) (*model.PersonalI
 		info.Interests = []string{}
 	}
 	info.LikeNum = strconv.FormatInt(likenumNull.Int64, 10)
+	info.AttionNum = strconv.FormatInt(likenumNull.Int64, 10)
 	info.FansNum = strconv.FormatInt(fansnumNull.Int64, 10)
 
 	return info, nil
