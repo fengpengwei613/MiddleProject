@@ -369,7 +369,7 @@ func updatePassword(db *sql.DB, mail string, newPassword string) (error, model.U
 }
 
 // 获取个人信息函数
-func GetPersonalInfo(db *sql.DB, uid string) (*model.PersonalInfo, error) {
+func GetPersonalInfo(db *sql.DB, uid string, requestid string) (*model.PersonalInfo, error) {
 	query := `
         SELECT user_id, Uname, avatar, phone, email, address, birthday, registration_date, 
                sex, introduction, school, major, edutime, eduleval, companyname, positionname, 
@@ -409,6 +409,14 @@ func GetPersonalInfo(db *sql.DB, uid string) (*model.PersonalInfo, error) {
 		}
 		return nil, fmt.Errorf("数据库查询失败: %v", err)
 	}
+
+	var isAttention bool
+	followQuery := "SELECT COUNT(*) FROM userfollows WHERE follower_id = ? AND followed_id = ?"
+	err = db.QueryRow(followQuery, requestid, uid).Scan(&isAttention)
+	if err != nil {
+		return nil, fmt.Errorf("检查关注状态失败: %v", err)
+	}
+	info.IsAttion = strconv.FormatBool(isAttention)
 
 	if avatarNull.Valid {
 		err, signedURL := scripts.GetUrl(avatarNull.String)
@@ -459,15 +467,17 @@ func HandleGetPersonalInfo(c *gin.Context) {
 	defer db.Close()
 
 	uid := c.Query("uid")
+	requestid := c.Query("requestid")
 	if uid == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID不能为空"})
 		return
 	}
 
-	personalInfo, err := GetPersonalInfo(db, uid)
+	personalInfo, err := GetPersonalInfo(db, uid, requestid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+
 	}
 
 	interestsFormatted := ""
