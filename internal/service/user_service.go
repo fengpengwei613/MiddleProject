@@ -480,16 +480,12 @@ func HandleGetPersonalInfo(c *gin.Context) {
 
 	}
 
-	interestsFormatted := ""
-	for _, interest := range personalInfo.Interests {
-		interestsFormatted += fmt.Sprintf("\"%s\",\n", interest)
+	interests := personalInfo.Interests
+	interestsFormatted := make([]string, len(interests))
+	for i, interest := range interests {
+		interestsFormatted[i] = strings.Trim(interest, "\"\n") // 移除字符串中的引号和换行符
 	}
-	if len(interestsFormatted) > 0 {
-		interestsFormatted = interestsFormatted[:len(interestsFormatted)-2] // 移除最后的逗号和换行符
-	}
-
-	personalInfo.Interests = []string{interestsFormatted}
-
+	
 	c.JSON(http.StatusOK, personalInfo)
 }
 
