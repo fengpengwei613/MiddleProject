@@ -220,7 +220,7 @@ func DeleteReply(c *gin.Context) {
 		return
 	}
 
-	commentID, err := strconv.Atoi(c.Query("comid"))
+	_, err = strconv.Atoi(c.Query("comid"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的评论ID"})
 		return

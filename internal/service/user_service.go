@@ -372,13 +372,14 @@ func updatePassword(db *sql.DB, mail string, newPassword string) (error, model.U
 // 获取个人信息函数
 func GetPersonalInfo(db *sql.DB, uid string, requestid string) (*model.PersonalInfo, error) {
 	query := `
-        SELECT user_id, Uname, avatar, phone, email, address, birthday, registration_date, 
+        SELECT signature, user_id, Uname, avatar, phone, email, address, birthday, registration_date, 
                sex, introduction, school, major, edutime, eduleval, companyname, positionname, 
                industry, interests, likenum, attionnum, fansnum
         FROM users WHERE user_id = ?`
 
 	info := &model.PersonalInfo{}
 	var (
+		signatureNULL    sql.NullString
 		avatarNull       sql.NullString
 		phoneNull        sql.NullString
 		emailNull        sql.NullString
@@ -400,7 +401,7 @@ func GetPersonalInfo(db *sql.DB, uid string, requestid string) (*model.PersonalI
 		fansnumNull      sql.NullInt64
 	)
 
-	err := db.QueryRow(query, uid).Scan(
+	err := db.QueryRow(query, uid).Scan(&signatureNULL,
 		&info.UserID, &info.UserName, &avatarNull, &phoneNull, &emailNull, &addressNull, &birthdayNull, &registrationDate,
 		&sexNull, &introductionNull, &schoolNull, &majorNull, &edutimeNull, &edulevelNull, &companyNull, &positionNull,
 		&industryNull, &interestsNull, &likenumNull, &attionumNull, &fansnumNull,
@@ -415,11 +416,12 @@ func GetPersonalInfo(db *sql.DB, uid string, requestid string) (*model.PersonalI
 	var isAttention bool
 	followQuery := "SELECT COUNT(*) FROM userfollows WHERE follower_id = ? AND followed_id = ?"
 	err = db.QueryRow(followQuery, requestid, uid).Scan(&isAttention)
+
 	if err != nil {
 		return nil, fmt.Errorf("检查关注状态失败: %v", err)
 	}
-	info.IsAttion = strconv.FormatBool(isAttention)
-
+	info.IsAttion = isAttention
+	info.Signature = signatureNULL.String
 	if avatarNull.Valid {
 		err, signedURL := scripts.GetUrl(avatarNull.String)
 		if err != nil {
@@ -500,7 +502,7 @@ func UpdatePersonal(db *sql.DB, uid, fieldType, value string) error {
 	switch fieldType {
 	case "uname":
 		query = "UPDATE users SET Uname = ? WHERE user_id = ?"
-	case "avatar":
+	case "uimage":
 		query = "UPDATE users SET avatar = ? WHERE user_id = ?"
 	case "phone":
 		query = "UPDATE users SET phone = ? WHERE user_id = ?"
@@ -526,8 +528,10 @@ func UpdatePersonal(db *sql.DB, uid, fieldType, value string) error {
 		query = "UPDATE users SET positionname = ? WHERE user_id = ?"
 	case "industry":
 		query = "UPDATE users SET industry = ? WHERE user_id = ?"
+	case "persign":
+		query = "UPDATE users SET signature = ? WHERE user_id = ?"
 	case "interests":
-		interests := strings.Split(value, "，")
+		interests := strings.Split(value, ",")
 		for i, interest := range interests {
 			interests[i] = strings.TrimSpace(interest)
 		}
@@ -590,7 +594,7 @@ func UpdatePersonalInfo(c *gin.Context) {
 type Follower struct {
 	FollowerID  int    `json:"follower_id"`
 	Uid         string `json:"uid"`
-	Avatar      string `json:"avatar"`
+	Avatar      string `json:"uimage"`
 	Uname       string `json:"uname"`
 	IsFollowing bool   `json:"isfollowing"`
 }
@@ -599,7 +603,7 @@ type Follower struct {
 type Following struct {
 	FollowedID int    `json:"followed_id"`
 	Uid        string `json:"uid"`
-	Avatar     string `json:"avatar"`
+	Avatar     string `json:"uimage"`
 	Uname      string `json:"uname"`
 }
 
@@ -725,7 +729,7 @@ func GetFollowers(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"failreason": "读取粉丝数据失败"})
 			return
 		}
-		follower.Uid = uid
+		follower.Uid = strconv.Itoa(follower.FollowerID)
 		follower.IsFollowing = true
 		if follower.Avatar == "" {
 			c.JSON(http.StatusInternalServerError, gin.H{"failreason": "头像地址为空"})
@@ -737,6 +741,7 @@ func GetFollowers(c *gin.Context) {
 			return
 		}
 		follower.Avatar = signedAvatarUrl
+		fmt.Println("avatar:", follower.Avatar)
 		followers = append(followers, follower)
 	}
 
@@ -752,7 +757,7 @@ func GetFollowers(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"datas":      followers,
-		"totalpages": totalPages,
+		"totalPages": totalPages,
 	})
 }
 
@@ -814,7 +819,8 @@ func GetFollowing(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"failreason": "读取关注数据失败"})
 			return
 		}
-		following.Uid = uid
+
+		following.Uid = strconv.Itoa(following.FollowedID)
 		err, signedAvatarUrl := scripts.GetUrl(following.Avatar)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"failreason": "获取头像签名失败"})
@@ -841,6 +847,6 @@ func GetFollowing(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"datas":      followings,
-		"totalpages": totalPages,
+		"totalPages": totalPages,
 	})
 }

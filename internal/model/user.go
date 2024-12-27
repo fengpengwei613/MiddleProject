@@ -110,8 +110,9 @@ func (u *User) UpdatePassword(email, newPassword string) (error, string) {
 }
 
 type PersonalInfo struct {
+	Signature    string   `json:"persign"`
 	UserID       string   `json:"userID"`
-	UserName     string   `json:"userName"`
+	UserName     string   `json:"uname"`
 	UImage       string   `json:"uimage"`
 	Phone        string   `json:"phone"`
 	Mail         string   `json:"mail"`
@@ -130,6 +131,6 @@ type PersonalInfo struct {
 	Interests    []string `json:"interests"`
 	LikeNum      string   `json:"likenum"`
 	AttionNum    string   `json:"attionnum"`
-	IsAttion     string   `json:"isattion"`
+	IsAttion     bool     `json:"isattion"`
 	FansNum      string   `json:"fansnum"`
 }

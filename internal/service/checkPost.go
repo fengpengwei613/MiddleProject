@@ -54,6 +54,7 @@ func GetPersonalPostLogs(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的页数"})
 		return
 	}
+	pageint -= 1
 
 	pagesize := 10
 	startnumber := pageint * pagesize
@@ -148,7 +149,7 @@ func GetPersonalPostLogs(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子总数失败"})
 	}
 	tatalpages := (countPosts-1)/pagesize + 1
-	c.JSON(http.StatusOK, gin.H{"isok": true, "logs": logs, "totalpages": tatalpages})
+	c.JSON(http.StatusOK, gin.H{"isok": true, "logs": logs, "totalPages": tatalpages})
 
 }
 
@@ -195,6 +196,7 @@ func GetPersonalLikePosts(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的页数"})
 		return
 	}
+	pageint -= 1
 
 	pagesize := 10
 	startnumber := pageint * pagesize
@@ -302,7 +304,7 @@ func GetPersonalLikePosts(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子总数失败"})
 	}
 	tatalpages := countPosts/pagesize + 1
-	c.JSON(http.StatusOK, gin.H{"isvaild": true, "logs": logs, "totalpages": tatalpages})
+	c.JSON(http.StatusOK, gin.H{"isvaild": true, "logs": logs, "totalPages": tatalpages})
 }
 
 // 查看个人收藏帖子
@@ -348,6 +350,7 @@ func GetPersonalCollectPosts(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的页数"})
 		return
 	}
+	pageint -= 1
 
 	pagesize := 10
 	startnumber := pageint * pagesize
@@ -455,6 +458,6 @@ func GetPersonalCollectPosts(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子总数失败"})
 	}
 	tatalpages := countPosts/pagesize + 1
-	c.JSON(http.StatusOK, gin.H{"isvaild": true, "logs": logs, "totalpages": tatalpages})
+	c.JSON(http.StatusOK, gin.H{"isvaild": true, "logs": logs, "totalPages": tatalpages})
 
 }

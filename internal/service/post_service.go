@@ -393,8 +393,6 @@ func GetPostInfo(c *gin.Context) {
 				post.Subjects[i] = post.Subjects[i][2 : len(post.Subjects[i])-1]
 			}
 		}
-	} else {
-		post.Subjects = []string{}
 	}
 	if images.Valid {
 		str := images.String
