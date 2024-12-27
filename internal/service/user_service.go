@@ -499,13 +499,14 @@ func isValidPhoneNumber(phone string) bool {
 	re := regexp.MustCompile(`^\d{11}$`)
 	return re.MatchString(phone)
 }
-func decodeBase64Image(base64Str string) ([]byte, error) {
-	data, err := base64.StdEncoding.DecodeString(base64Str)
-	if err != nil {
-		return nil, fmt.Errorf("解码 Base64 字符串失败: %v", err)
-	}
-	return data, nil
-}
+
+// func decodeBase64Image(base64Str string) ([]byte, error) {
+// 	data, err := base64.StdEncoding.DecodeString(base64Str)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("解码 Base64 字符串失败: %v", err)
+// 	}
+// 	return data, nil
+// }
 
 // 更新个人信息
 func UpdatePersonal(db *sql.DB, uid, fieldType, value string) error {
@@ -629,7 +630,6 @@ type Following struct {
 	Avatar     string `json:"uimage"`
 	Uname      string `json:"uname"`
 }
-
 
 // 查粉丝
 func GetFollowers(c *gin.Context) {
