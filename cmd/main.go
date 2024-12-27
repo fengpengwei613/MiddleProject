@@ -165,9 +165,9 @@ func main() {
 
 	//删帖
 	r.POST("/api/deletelog", service.DeletePost)
-	//删除评论
-	r.POST("/api/deletereply", service.DeleteReply)
 	//删除回复
+	r.POST("/api/deletereply", service.DeleteReply)
+	//删除评论
 	r.POST("/api/deletecomment", service.DeleteComment)
 
 	//获取举报目标

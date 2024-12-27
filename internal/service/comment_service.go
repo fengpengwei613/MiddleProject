@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"middleproject/internal/model"
+	"middleproject/internal/repository"
 	"net/http"
 	"strconv"
 
@@ -280,11 +281,11 @@ func DeleteReply(c *gin.Context) {
 		return
 	}
 
-	_, err = db.Exec("UPDATE comments SET reply_count = reply_count - 1 WHERE comment_id = ?", commentID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "更新评论回复数量失败"})
-		return
-	}
+	// _, err = db.Exec("UPDATE comments SET reply_count = reply_count - 1 WHERE comment_id = ?", commentID)
+	// if err != nil {
+	// 	c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "更新评论回复数量失败"})
+	// 	return
+	// }
 
 	c.JSON(http.StatusOK, gin.H{"isok": true, "message": "删除回复成功"})
 }

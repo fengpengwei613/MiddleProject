@@ -334,6 +334,7 @@ func ForgotPassword(c *gin.Context) {
 		"uimage":     avatarURL,
 	})
 }
+
 // 更新密码
 func updatePassword(db *sql.DB, mail string, newPassword string) (error, model.User, string) {
 
@@ -367,7 +368,6 @@ func updatePassword(db *sql.DB, mail string, newPassword string) (error, model.U
 
 	return nil, user, ""
 }
-
 
 // 获取个人信息函数
 func GetPersonalInfo(db *sql.DB, uid string, requestid string) (*model.PersonalInfo, error) {
@@ -488,7 +488,7 @@ func HandleGetPersonalInfo(c *gin.Context) {
 	for i, interest := range interests {
 		interestsFormatted[i] = strings.Trim(interest, "\"\n") // 移除字符串中的引号和换行符
 	}
-	
+
 	c.JSON(http.StatusOK, personalInfo)
 }
 
@@ -586,7 +586,6 @@ func UpdatePersonalInfo(c *gin.Context) {
 	})
 }
 
-
 // 定义粉丝结构体类型
 type Follower struct {
 	FollowerID  int    `json:"follower_id"`
@@ -604,69 +603,69 @@ type Following struct {
 	Uname      string `json:"uname"`
 }
 
-// 查粉丝
-func GetFollowers(c *gin.Context) {
-	db, err := repository.Connect()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "数据库连接失败"})
-		return
-	}
-	defer db.Close()
+// // 查粉丝
+// func GetFollowers(c *gin.Context) {
+// 	db, err := repository.Connect()
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "数据库连接失败"})
+// 		return
+// 	}
+// 	defer db.Close()
 
-	uid := c.DefaultQuery("uid", "")
-	page := c.DefaultQuery("page", "1") // 当前页码，默认为1
+// 	uid := c.DefaultQuery("uid", "")
+// 	page := c.DefaultQuery("page", "1") // 当前页码，默认为1
 
-	if uid == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"failreason": "缺少用户ID"})
-		return
-	}
+// 	if uid == "" {
+// 		c.JSON(http.StatusBadRequest, gin.H{"failreason": "缺少用户ID"})
+// 		return
+// 	}
 
-	pageSize := 10
-	currentPage, _ := strconv.Atoi(page)
-	offset := (currentPage - 1) * pageSize
+// 	pageSize := 10
+// 	currentPage, _ := strconv.Atoi(page)
+// 	offset := (currentPage - 1) * pageSize
 
-	var followers []Follower
+// 	var followers []Follower
 
-	query := `
-        SELECT u.user_id, u.avatar, u.uname
-        FROM userfollows uf
-        JOIN users u ON uf.follower_id = u.user_id
-        WHERE uf.followed_id = ? 
-        LIMIT ? OFFSET ?
-    `
-	rows, err := db.Query(query, uid, pageSize, offset)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "查询粉丝失败"})
-		return
-	}
-	defer rows.Close()
+// 	query := `
+//         SELECT u.user_id, u.avatar, u.uname
+//         FROM userfollows uf
+//         JOIN users u ON uf.follower_id = u.user_id
+//         WHERE uf.followed_id = ?
+//         LIMIT ? OFFSET ?
+//     `
+// 	rows, err := db.Query(query, uid, pageSize, offset)
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "查询粉丝失败"})
+// 		return
+// 	}
+// 	defer rows.Close()
 
-	for rows.Next() {
-		var follower Follower
-		if err := rows.Scan(&follower.FollowerID, &follower.Avatar, &follower.Uname); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"failreason": "读取粉丝数据失败"})
-			return
-		}
-		follower.Uid = uid
-		follower.IsFollowing = true
-		followers = append(followers, follower)
-	}
+// 	for rows.Next() {
+// 		var follower Follower
+// 		if err := rows.Scan(&follower.FollowerID, &follower.Avatar, &follower.Uname); err != nil {
+// 			c.JSON(http.StatusInternalServerError, gin.H{"failreason": "读取粉丝数据失败"})
+// 			return
+// 		}
+// 		follower.Uid = uid
+// 		follower.IsFollowing = true
+// 		followers = append(followers, follower)
+// 	}
 
-	var totalFollowers int
-	queryTotal := `SELECT COUNT(*) FROM userfollows WHERE followed_id = ?`
-	err = db.QueryRow(queryTotal, uid).Scan(&totalFollowers)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "获取粉丝总数失败"})
-		return
-	}
+// 	var totalFollowers int
+// 	queryTotal := `SELECT COUNT(*) FROM userfollows WHERE followed_id = ?`
+// 	err = db.QueryRow(queryTotal, uid).Scan(&totalFollowers)
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "获取粉丝总数失败"})
+// 		return
+// 	}
 
-	totalPages := int(math.Ceil(float64(totalFollowers) / float64(pageSize)))
+// 	totalPages := int(math.Ceil(float64(totalFollowers) / float64(pageSize)))
 
-	c.JSON(http.StatusOK, gin.H{
-		"datas":      followers,
-		"totalpages": totalPages,
-	})
-}
+// 	c.JSON(http.StatusOK, gin.H{
+// 		"datas":      followers,
+// 		"totalpages": totalPages,
+// 	})
+// }
 
 // 查粉丝
 func GetFollowers(c *gin.Context) {
