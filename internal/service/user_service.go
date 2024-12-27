@@ -494,64 +494,87 @@ func HandleGetPersonalInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, personalInfo)
 }
 
+// 验证电话号码是否为11位数字
+func isValidPhoneNumber(phone string) bool {
+	re := regexp.MustCompile(`^\d{11}$`)
+	return re.MatchString(phone)
+}
+func decodeBase64Image(base64Str string) ([]byte, error) {
+	data, err := base64.StdEncoding.DecodeString(base64Str)
+	if err != nil {
+		return nil, fmt.Errorf("解码 Base64 字符串失败: %v", err)
+	}
+	return data, nil
+}
+
 // 更新个人信息
 func UpdatePersonal(db *sql.DB, uid, fieldType, value string) error {
 	var query string
 	var err error
 
-	switch fieldType {
-	case "uname":
-		query = "UPDATE users SET Uname = ? WHERE user_id = ?"
-	case "uimage":
+	if fieldType == "uimage" {
+		filename := "avatar_" + uid + ".png"
+		err_up, imageURL := scripts.UploadImage(value, filename)
+		if err_up != nil {
+			return fmt.Errorf("上传图片失败: %v", imageURL)
+		}
+
 		query = "UPDATE users SET avatar = ? WHERE user_id = ?"
-	case "phone":
-		query = "UPDATE users SET phone = ? WHERE user_id = ?"
-	case "email":
-		query = "UPDATE users SET email = ? WHERE user_id = ?"
-	case "address":
-		query = "UPDATE users SET address = ? WHERE user_id = ?"
-	case "birthday":
-		query = "UPDATE users SET birthday = ? WHERE user_id = ?"
-	case "introduction":
-		query = "UPDATE users SET introduction = ? WHERE user_id = ?"
-	case "school":
-		query = "UPDATE users SET school = ? WHERE user_id = ?"
-	case "major":
-		query = "UPDATE users SET major = ? WHERE user_id = ?"
-	case "edutime":
-		query = "UPDATE users SET edutime = ? WHERE user_id = ?"
-	case "eduleval":
-		query = "UPDATE users SET eduleval = ? WHERE user_id = ?"
-	case "companyname":
-		query = "UPDATE users SET companyname = ? WHERE user_id = ?"
-	case "positionname":
-		query = "UPDATE users SET positionname = ? WHERE user_id = ?"
-	case "industry":
-		query = "UPDATE users SET industry = ? WHERE user_id = ?"
-	case "persign":
-		query = "UPDATE users SET signature = ? WHERE user_id = ?"
-	case "interests":
-		interests := strings.Split(value, ",")
-		for i, interest := range interests {
-			interests[i] = strings.TrimSpace(interest)
-		}
+		value = imageURL
+	} else {
+		switch fieldType {
+		case "uname":
+			query = "UPDATE users SET Uname = ? WHERE user_id = ?"
+		case "phone":
+			if !isValidPhoneNumber(value) {
+				return fmt.Errorf("无效的电话号码")
+			}
+			query = "UPDATE users SET phone = ? WHERE user_id = ?"
+		case "mail":
+			query = "UPDATE users SET email = ? WHERE user_id = ?"
+		case "address":
+			query = "UPDATE users SET address = ? WHERE user_id = ?"
+		case "birthday":
+			query = "UPDATE users SET birthday = ? WHERE user_id = ?"
+		case "introduction":
+			query = "UPDATE users SET introduction = ? WHERE user_id = ?"
+		case "schoolname":
+			query = "UPDATE users SET school = ? WHERE user_id = ?"
+		case "major":
+			query = "UPDATE users SET major = ? WHERE user_id = ?"
+		case "edutime":
+			query = "UPDATE users SET edutime = ? WHERE user_id = ?"
+		case "edulevel":
+			query = "UPDATE users SET eduleval = ? WHERE user_id = ?"
+		case "companyname":
+			query = "UPDATE users SET companyname = ? WHERE user_id = ?"
+		case "positionname":
+			query = "UPDATE users SET positionname = ? WHERE user_id = ?"
+		case "industry":
+			query = "UPDATE users SET industry = ? WHERE user_id = ?"
+		case "interests":
+			interests := strings.Split(value, "，")
+			for i, interest := range interests {
+				interests[i] = strings.TrimSpace(interest)
+			}
 
-		interestsJSON, err := json.Marshal(interests)
-		if err != nil {
-			return fmt.Errorf("转换 interests 为 JSON 字符串失败: %v", err)
-		}
+			interestsJSON, err := json.Marshal(interests)
+			if err != nil {
+				return fmt.Errorf("转换 interests 为 JSON 字符串失败: %v", err)
+			}
 
-		query = "UPDATE users SET interests = ? WHERE user_id = ?"
-		value = string(interestsJSON) // 将 JSON 字符串传递给数据库
-	default:
-		return fmt.Errorf("无效的更新类型: %s", fieldType)
+			query = "UPDATE users SET interests = ? WHERE user_id = ?"
+			value = string(interestsJSON)
+		case "persign":
+			query = "UPDATE users SET persign = ? WHERE user_id = ?"
+		default:
+			return fmt.Errorf("无效的更新类型: %s", fieldType)
+		}
 	}
-
 	_, err = db.Exec(query, value, uid)
 	if err != nil {
 		return fmt.Errorf("更新失败: %v", err)
 	}
-
 	return nil
 }
 
