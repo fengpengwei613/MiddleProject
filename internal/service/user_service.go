@@ -673,13 +673,8 @@ func GetFollowers(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"failreason": "用户不存在"})
 		return
 	}
+
 	page := c.DefaultQuery("page", "1")
-
-	if uid == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"failreason": "缺少用户ID"})
-		return
-	}
-
 	pageSize := 10
 	currentPage, _ := strconv.Atoi(page)
 	offset := (currentPage - 1) * pageSize
@@ -700,6 +695,7 @@ func GetFollowers(c *gin.Context) {
 	}
 	defer rows.Close()
 
+	// 获取当前用户的关注状态
 	for rows.Next() {
 		var follower Follower
 		if err := rows.Scan(&follower.FollowerID, &follower.Avatar, &follower.Uname); err != nil {
@@ -707,7 +703,16 @@ func GetFollowers(c *gin.Context) {
 			return
 		}
 		follower.Uid = strconv.Itoa(follower.FollowerID)
-		follower.IsAttion = true
+
+		// 判断当前用户是否关注该粉丝
+		var isFollowing bool
+		err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM userfollows WHERE follower_id = ? AND followed_id = ?)", uid, follower.FollowerID).Scan(&isFollowing)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"failreason": "检查关注关系时发生错误"})
+			return
+		}
+		follower.IsAttion = isFollowing // 动态设置是否关注
+
 		if follower.Avatar == "" {
 			c.JSON(http.StatusInternalServerError, gin.H{"failreason": "头像地址为空"})
 			return
@@ -718,7 +723,6 @@ func GetFollowers(c *gin.Context) {
 			return
 		}
 		follower.Avatar = signedAvatarUrl
-		fmt.Println("avatar:", follower.Avatar)
 		followers = append(followers, follower)
 	}
 

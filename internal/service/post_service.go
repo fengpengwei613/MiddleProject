@@ -321,7 +321,10 @@ func GetCommentInfo(page_num int, postid int, uid int, comid int) (error, []Post
 			comment.IsLike = false
 		} else {
 			query = "select liker_id from commentlikes where liker_id=? and comment_id=?"
+			fmt.Println(uid, cid)
 			row := db.QueryRow(query, uid, cid)
+			
+
 			var like_id int
 			err_scan = row.Scan(&like_id)
 			if err_scan != nil {

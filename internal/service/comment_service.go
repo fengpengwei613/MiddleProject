@@ -277,6 +277,7 @@ func DeleteReply(c *gin.Context) {
 
 	_, err = db.Exec("DELETE FROM comments WHERE comment_id = ?", replyID)
 	if err != nil {
+		fmt.Println(err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "删除回复失败"})
 		return
 	}
