@@ -620,7 +620,7 @@ type Follower struct {
 	Uid         string `json:"uid"`
 	Avatar      string `json:"uimage"`
 	Uname       string `json:"uname"`
-	IsFollowing bool   `json:"isfollowing"`
+	IsFollowing bool   `json:"isattion"`
 }
 
 // 定义关注结构体类型
