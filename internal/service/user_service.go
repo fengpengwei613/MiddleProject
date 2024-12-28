@@ -436,7 +436,17 @@ func GetPersonalInfo(db *sql.DB, uid string, requestid string) (*model.PersonalI
 	info.Address = addressNull.String
 	info.Birthday = birthdayNull.String
 	info.RegTime = registrationDate.String
-	info.Sex = strconv.FormatInt(sexNull.Int64, 10)
+	if sexNull.Valid {
+		if sexNull.Int64 == 1 {
+			info.Sex = "男"
+		} else if sexNull.Int64 == 2 {
+			info.Sex = "女"
+		} else {
+			info.Sex = "未知"
+		}
+	} else {
+		info.Sex = "未知"
+	}
 	info.Introduction = introductionNull.String
 	info.SchoolName = schoolNull.String
 	info.Major = majorNull.String
@@ -620,7 +630,7 @@ type Follower struct {
 	Uid         string `json:"uid"`
 	Avatar      string `json:"uimage"`
 	Uname       string `json:"uname"`
-	IsFollowing bool   `json:"isfollowing"`
+	IsFollowing bool   `json:"isattion"`
 }
 
 // 定义关注结构体类型
