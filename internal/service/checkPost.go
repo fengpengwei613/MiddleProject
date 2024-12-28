@@ -209,7 +209,7 @@ func GetPersonalLikePosts(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询用户是否显示喜欢失败"})
 		return
 	}
-	if !showlike {
+	if !showlike && uid != aimuid {
 		c.JSON(http.StatusBadRequest, gin.H{"isvalid": false, "failreason": "用户不显示喜欢"})
 		return
 	}
@@ -410,7 +410,7 @@ func GetPersonalCollectPosts(c *gin.Context) {
 			return
 		}
 
-		if log.FriendSee && uid!=aimuid {
+		if log.FriendSee && uid != aimuid {
 			friendCheckQuery := `SELECT COUNT(*)
 			FROM userfollows f1
 			JOIN userfollows f2 
@@ -427,7 +427,7 @@ func GetPersonalCollectPosts(c *gin.Context) {
 				continue
 			}
 		}
-        
+
 		if currentIndex >= startnumber && currentIndex < endnumber {
 			var sujects []string
 			if subjectsJSON != "" {
