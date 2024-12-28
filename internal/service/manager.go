@@ -137,7 +137,7 @@ LIMIT ?,?
                 "uname":      report.UName,
                 "reason":     report.Reason,
                 "rtype":      report.Rpttype,
-                "rtime":      report.ReportTime,
+                "time":      report.ReportTime,
                 "ruid":        report.ReporterID,
             })
         }else if report.Type == "comment" {
@@ -150,7 +150,7 @@ LIMIT ?,?
                 "uname":      report.UName,
                 "reason":     report.Reason,
                 "rtype":      report.Rpttype,
-                "rtime":      report.ReportTime,
+                "time":      report.ReportTime,
                 "ruid":        report.ReporterID,
             })
         }else if report.Type == "reply" {
@@ -164,7 +164,7 @@ LIMIT ?,?
                 "uname":      report.UName,
                 "reason":     report.Reason,
                 "rtype":      report.Rpttype,
-                "rtime":      report.ReportTime,
+                "time":      report.ReportTime,
                 "ruid":        report.ReporterID,
             })
         }
