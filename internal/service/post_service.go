@@ -276,7 +276,7 @@ type PostData struct {
 }
 
 // 获取评论信息
-func GetCommentInfo(page_num int, postid int, uid int, comid int) (error, []PostComment) {
+func GetCommentInfo(page_num int, postid int, uid222 int, comid int) (error, []PostComment) {
 	var comments []PostComment
 	db, err_conn := repository.Connect()
 	if err_conn != nil {
@@ -322,11 +322,13 @@ func GetCommentInfo(page_num int, postid int, uid int, comid int) (error, []Post
 		} else {
 			query = "select liker_id from commentlikes where liker_id=? and comment_id=?"
 			fmt.Println(uid, cid)
-			row := db.QueryRow(query, uid, cid)
-			
+			row := db.QueryRow(query, uid222, cid)
+			fmt.Println("uid2222:", uid222)
+			fmt.Println(row)
 
 			var like_id int
 			err_scan = row.Scan(&like_id)
+
 			if err_scan != nil {
 				comment.IsLike = false
 			} else {

@@ -3,9 +3,9 @@ package model
 //package main
 
 import (
-	"fmt"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"middleproject/internal/repository"
 	"middleproject/scripts"
 	"strconv"
@@ -43,7 +43,7 @@ func (p *Post) AddPost() (error, string, string) {
 	var image_url = p.Images
 	p.Images = []string{}
 	//序列化
-	
+
 	jsonImages, err_json := json.Marshal(p.Images)
 	if err_json != nil {
 		db.Rollback()
@@ -108,24 +108,13 @@ func LikePost(userID, postID int) (error, string) {
 	defer db_link.Close()
 
 	var count int
-	query_check_like := "SELECT COUNT(*) FROM postlikes WHERE post_id = ? AND  liker_id = ?"
+	query_check_like := "SELECT COUNT(*) FROM postlikes WHERE post_id = ? AND liker_id = ?"
 	err := db_link.QueryRow(query_check_like, postID, userID).Scan(&count)
 	if err != nil && err != sql.ErrNoRows {
 		return err, "查询点赞记录失败"
 	}
 
-	// 取消点赞
-	if count > 0 {
-		_, err_del := db_link.Exec("DELETE FROM postlikes WHERE post_id = ? AND liker_id = ?", postID, userID)
-		if err_del != nil {
-			return err_del, "取消点赞失败"
-		}
-		_, err_update := db_link.Exec("UPDATE posts SET like_count = like_count - 1 WHERE post_id = ?", postID)
-		if err_update != nil {
-			return err_update, "更新点赞数失败"
-		}
-		return nil, "取消点赞成功"
-	} else {
+	if count == 0 {
 		_, err_add := db_link.Exec("INSERT INTO postlikes (post_id, liker_id) VALUES (?, ?)", postID, userID)
 		if err_add != nil {
 			return err_add, "点赞失败"
@@ -136,6 +125,36 @@ func LikePost(userID, postID int) (error, string) {
 		}
 		return nil, "点赞成功"
 	}
+	return nil, "您已经点赞过该帖子"
+}
+
+// 取消点赞帖子
+func DislikePost(userID, postID int) (error, string) {
+	db_link, err_conn := repository.Connect()
+	if err_conn != nil {
+		return err_conn, "连接数据库失败"
+	}
+	defer db_link.Close()
+
+	var count int
+	query_check_like := "SELECT COUNT(*) FROM postlikes WHERE post_id = ? AND liker_id = ?"
+	err := db_link.QueryRow(query_check_like, postID, userID).Scan(&count)
+	if err != nil && err != sql.ErrNoRows {
+		return err, "查询点赞记录失败"
+	}
+
+	if count > 0 {
+		_, err_del := db_link.Exec("DELETE FROM postlikes WHERE post_id = ? AND liker_id = ?", postID, userID)
+		if err_del != nil {
+			return err_del, "取消点赞失败"
+		}
+		_, err_update := db_link.Exec("UPDATE posts SET like_count = like_count - 1 WHERE post_id = ?", postID)
+		if err_update != nil {
+			return err_update, "更新点赞数失败"
+		}
+		return nil, "取消点赞成功"
+	}
+	return nil, "您尚未点赞该帖子"
 }
 
 // 收藏帖子
@@ -153,18 +172,7 @@ func CollectPost(userID, postID int) (error, string) {
 		return err, "查询收藏记录失败"
 	}
 
-	// 取消收藏
-	if count > 0 {
-		_, err_del := db_link.Exec("DELETE FROM postfavorites WHERE post_id = ? AND user_id = ?", postID, userID)
-		if err_del != nil {
-			return err_del, "取消收藏失败"
-		}
-		_, err_update := db_link.Exec("UPDATE posts SET favorite_count = favorite_count - 1 WHERE post_id = ?", postID)
-		if err_update != nil {
-			return err_update, "更新收藏数失败"
-		}
-		return nil, "取消收藏成功"
-	} else {
+	if count == 0 {
 		_, err_add := db_link.Exec("INSERT INTO postfavorites (post_id, user_id) VALUES (?, ?)", postID, userID)
 		if err_add != nil {
 			return err_add, "收藏失败"
@@ -175,6 +183,35 @@ func CollectPost(userID, postID int) (error, string) {
 		}
 		return nil, "收藏成功"
 	}
+	return nil, "您已经收藏过该帖子"
+}
+
+// 取消收藏帖子
+func UncollectPost(userID, postID int) (error, string) {
+	db_link, err_conn := repository.Connect()
+	if err_conn != nil {
+		return err_conn, "连接数据库失败"
+	}
+	defer db_link.Close()
+
+	var count int
+	query_check_favorite := "SELECT COUNT(*) FROM postfavorites WHERE post_id = ? AND user_id = ?"
+	err := db_link.QueryRow(query_check_favorite, postID, userID).Scan(&count)
+	if err != nil && err != sql.ErrNoRows {
+		return err, "查询收藏记录失败"
+	}
+	if count > 0 {
+		_, err_del := db_link.Exec("DELETE FROM postfavorites WHERE post_id = ? AND user_id = ?", postID, userID)
+		if err_del != nil {
+			return err_del, "取消收藏失败"
+		}
+		_, err_update := db_link.Exec("UPDATE posts SET favorite_count = favorite_count - 1 WHERE post_id = ?", postID)
+		if err_update != nil {
+			return err_update, "更新收藏数失败"
+		}
+		return nil, "取消收藏成功"
+	}
+	return nil, "您尚未收藏该帖子"
 }
 
 // 点赞评论
@@ -192,18 +229,7 @@ func LikeComment(userID, commentID int) (error, string) {
 		return err, "查询点赞记录失败"
 	}
 
-	// 取消点赞
-	if count > 0 {
-		_, err_del := db_link.Exec("DELETE FROM commentlikes WHERE comment_id = ? AND liker_id = ?", commentID, userID)
-		if err_del != nil {
-			return err_del, "取消点赞失败"
-		}
-		_, err_update := db_link.Exec("UPDATE comments SET like_count = like_count - 1 WHERE comment_id = ?", commentID)
-		if err_update != nil {
-			return err_update, "更新评论点赞数失败"
-		}
-		return nil, "取消点赞成功"
-	} else {
+	if count == 0 {
 		_, err_add := db_link.Exec("INSERT INTO commentlikes (comment_id, liker_id) VALUES (?, ?)", commentID, userID)
 		if err_add != nil {
 			return err_add, "点赞失败"
@@ -214,9 +240,37 @@ func LikeComment(userID, commentID int) (error, string) {
 		}
 		return nil, "点赞成功"
 	}
+	return nil, "您已经点赞过该评论"
 }
 
-// 删除帖子
+// 取消点赞评论
+func UnLikeComment(userID, commentID int) (error, string) {
+	db_link, err_conn := repository.Connect()
+	if err_conn != nil {
+		return err_conn, "连接数据库失败"
+	}
+	defer db_link.Close()
+
+	var count int
+	query_check_like := "SELECT COUNT(*) FROM commentlikes WHERE comment_id = ? AND liker_id = ?"
+	err := db_link.QueryRow(query_check_like, commentID, userID).Scan(&count)
+	if err != nil && err != sql.ErrNoRows {
+		return err, "查询点赞记录失败"
+	}
+
+	if count > 0 {
+		_, err_del := db_link.Exec("DELETE FROM commentlikes WHERE comment_id = ? AND liker_id = ?", commentID, userID)
+		if err_del != nil {
+			return err_del, "取消点赞失败"
+		}
+		_, err_update := db_link.Exec("UPDATE comments SET like_count = like_count - 1 WHERE comment_id = ?", commentID)
+		if err_update != nil {
+			return err_update, "更新评论点赞数失败"
+		}
+		return nil, "取消点赞成功"
+	}
+	return nil, "您尚未点赞该评论"
+}
 func DeletePostByUser(postID int, uid int) (error, string) {
 	db_link, err := repository.Connect()
 	if err != nil {

@@ -70,8 +70,8 @@ func AdmLogin(c *gin.Context) {
 
 type Userinfo struct {
 	Uid    string `json:"uid"`
-	Uimage string `json: "uimage"`
-	Uname  string `json: "uname"`
+	Uimage string `json:"uimage"`
+	Uname  string `json:"uname"`
 }
 
 func GetallUser(c *gin.Context) {
