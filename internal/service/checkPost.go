@@ -157,7 +157,7 @@ func GetPersonalPostLogs(c *gin.Context) {
 func GetPersonalLikePosts(c *gin.Context) {
 	db, err := repository.Connect()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "数据库连接失败"})
 	}
 	defer db.Close()
 
@@ -166,34 +166,34 @@ func GetPersonalLikePosts(c *gin.Context) {
 	aimuid := c.Query("aimuid")
 
 	if page == "" || uid == "" || aimuid == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "请求参数不能为空"})
+		c.JSON(http.StatusBadRequest, gin.H{"isvalid": false, "failreason": "请求参数不能为空"})
 		return
 	}
 	count, err := UserExists(db, uid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询用户是否存在失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询用户是否存在失败"})
 		return
 	}
 	if !count {
 		failreason := fmt.Sprintf("用户%s不存在", uid)
-		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": failreason})
+		c.JSON(http.StatusBadRequest, gin.H{"isvalid": false, "failreason": failreason})
 		return
 	}
 	count, err = UserExists(db, aimuid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询用户是否存在失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询用户是否存在失败"})
 		return
 	}
 	if !count {
 		failreason := fmt.Sprintf("用户%s不存在", aimuid)
-		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": failreason})
+		c.JSON(http.StatusBadRequest, gin.H{"isvalid": false, "failreason": failreason})
 		return
 	}
 
 	//查看页数是否无效
 	pageint, err := strconv.Atoi(page)
 	if err != nil || pageint < 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的页数"})
+		c.JSON(http.StatusBadRequest, gin.H{"isvalid": false, "failreason": "无效的页数"})
 		return
 	}
 	pageint -= 1
@@ -206,7 +206,7 @@ func GetPersonalLikePosts(c *gin.Context) {
 	query := "SELECT showlike FROM Users WHERE user_id=?"
 	var showlike bool
 	if err := db.QueryRow(query, aimuid).Scan(&showlike); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询用户是否显示喜欢失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询用户是否显示喜欢失败"})
 		return
 	}
 	if !showlike && uid != aimuid {
@@ -223,7 +223,7 @@ func GetPersonalLikePosts(c *gin.Context) {
 	ORDER BY p.publish_time DESC`
 	rows, err := db.Query(checkLikeQuery, aimuid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子失败"})
 		return
 	}
 	defer rows.Close()
@@ -246,13 +246,13 @@ func GetPersonalLikePosts(c *gin.Context) {
 		}
 		var subjectsJSON string
 		if err := rows.Scan(&log.ID, &log.Title, &log.UID, &log.Uname, &log.Uimage, &log.Time, &log.SomeContent, &subjectsJSON, &log.FriendSee); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "解析失败"})
+			c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "解析失败"})
 			return
 		}
 		var err_url error
 		err_url, log.Uimage = scripts.GetUrl(log.Uimage)
 		if err_url != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "获取头像Url失败"})
+			c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "获取头像Url失败"})
 			return
 		}
 
@@ -267,7 +267,7 @@ func GetPersonalLikePosts(c *gin.Context) {
 			var count int
 			err := db.QueryRow(friendCheckQuery, uid, log.UID).Scan(&count)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询是否互关失败"})
+				c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询是否互关失败"})
 				return
 			}
 			if count == 0 {
@@ -279,7 +279,7 @@ func GetPersonalLikePosts(c *gin.Context) {
 			var sujects []string
 			if subjectsJSON != "" {
 				if err := json.Unmarshal([]byte(subjectsJSON), &sujects); err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "解析主题失败"})
+					c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "解析主题失败"})
 					return
 				}
 			}
@@ -301,7 +301,7 @@ func GetPersonalLikePosts(c *gin.Context) {
 	countPostsQuery := "SELECT COUNT(*) FROM Postlikes WHERE liker_id=?"
 	var countPosts int
 	if err := db.QueryRow(countPostsQuery, aimuid).Scan(&countPosts); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子总数失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子总数失败"})
 	}
 	tatalpages := countPosts/pagesize + 1
 	c.JSON(http.StatusOK, gin.H{"isvaild": true, "logs": logs, "totalPages": tatalpages})
@@ -311,7 +311,7 @@ func GetPersonalLikePosts(c *gin.Context) {
 func GetPersonalCollectPosts(c *gin.Context) {
 	db, err := repository.Connect()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "数据库连接失败"})
 	}
 	defer db.Close()
 
@@ -320,34 +320,34 @@ func GetPersonalCollectPosts(c *gin.Context) {
 	aimuid := c.Query("aimuid")
 
 	if page == "" || uid == "" || aimuid == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "请求参数不能为空"})
+		c.JSON(http.StatusBadRequest, gin.H{"isvalid": false, "failreason": "请求参数不能为空"})
 		return
 	}
 	count, err := UserExists(db, uid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询用户是否存在失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询用户是否存在失败"})
 		return
 	}
 	if !count {
 		failreason := fmt.Sprintf("用户%s不存在", uid)
-		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": failreason})
+		c.JSON(http.StatusBadRequest, gin.H{"isvalid": false, "failreason": failreason})
 		return
 	}
 	count, err = UserExists(db, aimuid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询用户是否存在失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询用户是否存在失败"})
 		return
 	}
 	if !count {
 		failreason := fmt.Sprintf("用户%s不存在", aimuid)
-		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": failreason})
+		c.JSON(http.StatusBadRequest, gin.H{"isvalid": false, "failreason": failreason})
 		return
 	}
 
 	//查看页数是否无效
 	pageint, err := strconv.Atoi(page)
 	if err != nil || pageint < 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的页数"})
+		c.JSON(http.StatusBadRequest, gin.H{"isvalid": false, "failreason": "无效的页数"})
 		return
 	}
 	pageint -= 1
@@ -360,7 +360,7 @@ func GetPersonalCollectPosts(c *gin.Context) {
 	query := "SELECT showcollect FROM Users WHERE user_id=?"
 	var showcollect bool
 	if err := db.QueryRow(query, aimuid).Scan(&showcollect); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询用户是否显示收藏失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询用户是否显示收藏失败"})
 		return
 	}
 	if !showcollect {
@@ -377,7 +377,7 @@ func GetPersonalCollectPosts(c *gin.Context) {
 	ORDER BY p.publish_time DESC`
 	rows, err := db.Query(checkCollectQuery, aimuid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子失败"})
 		return
 	}
 	defer rows.Close()
@@ -400,13 +400,13 @@ func GetPersonalCollectPosts(c *gin.Context) {
 		}
 		var subjectsJSON string
 		if err := rows.Scan(&log.ID, &log.Title, &log.UID, &log.Uname, &log.Uimage, &log.Time, &log.SomeContent, &subjectsJSON, &log.FriendSee); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "解析失败"})
+			c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "解析失败"})
 			return
 		}
 		var err_url error
 		err_url, log.Uimage = scripts.GetUrl(log.Uimage)
 		if err_url != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "获取头像Url失败"})
+			c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "获取头像Url失败"})
 			return
 		}
 
@@ -420,7 +420,7 @@ func GetPersonalCollectPosts(c *gin.Context) {
 			var count int
 			err := db.QueryRow(friendCheckQuery, uid, log.UID).Scan(&count)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询是否互关失败"})
+				c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询是否互关失败"})
 				return
 			}
 			if count == 0 {
@@ -432,7 +432,7 @@ func GetPersonalCollectPosts(c *gin.Context) {
 			var sujects []string
 			if subjectsJSON != "" {
 				if err := json.Unmarshal([]byte(subjectsJSON), &sujects); err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "解析主题失败"})
+					c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "解析主题失败"})
 					return
 				}
 			}
@@ -454,7 +454,7 @@ func GetPersonalCollectPosts(c *gin.Context) {
 	countPostsQuery := "SELECT COUNT(*) FROM Postfavorites WHERE user_id=?"
 	var countPosts int
 	if err := db.QueryRow(countPostsQuery, aimuid).Scan(&countPosts); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子总数失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子总数失败"})
 	}
 	tatalpages := countPosts/pagesize + 1
 	c.JSON(http.StatusOK, gin.H{"isvaild": true, "logs": logs, "totalPages": tatalpages})
