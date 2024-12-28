@@ -244,7 +244,7 @@ func GetReportInfo(c *gin.Context) {
             loginfo.Images = []string{} // 如果没有图片，确保它是一个空数组
         }
 
-        c.JSON(http.StatusOK, gin.H{"isok": true, "postinfo": loginfo})
+        c.JSON(http.StatusOK, gin.H{"isok": true, "loginfo": loginfo})
     }else if type1 == "comment" {
         if commentid == "" {
             c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "缺少commentid参数"})
