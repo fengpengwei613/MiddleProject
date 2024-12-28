@@ -304,7 +304,7 @@ func GetPersonalLikePosts(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子总数失败"})
 	}
 	tatalpages := countPosts/pagesize + 1
-	c.JSON(http.StatusOK, gin.H{"isvaild": true, "logs": logs, "totalPages": tatalpages})
+	c.JSON(http.StatusOK, gin.H{"isvalid": true, "logs": logs, "totalPages": tatalpages})
 }
 
 // 查看个人收藏帖子
@@ -457,6 +457,6 @@ func GetPersonalCollectPosts(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子总数失败"})
 	}
 	tatalpages := countPosts/pagesize + 1
-	c.JSON(http.StatusOK, gin.H{"isvaild": true, "logs": logs, "totalPages": tatalpages})
+	c.JSON(http.StatusOK, gin.H{"isvalid": true, "logs": logs, "totalPages": tatalpages})
 
 }

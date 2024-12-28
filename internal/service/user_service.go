@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -372,10 +373,10 @@ func updatePassword(db *sql.DB, mail string, newPassword string) (error, model.U
 // 获取个人信息函数
 func GetPersonalInfo(db *sql.DB, uid string, requestid string) (*model.PersonalInfo, error) {
 	query := `
-        SELECT signature, user_id, Uname, avatar, phone, email, address, birthday, registration_date, 
-               sex, introduction, school, major, edutime, eduleval, companyname, positionname, 
-               industry, interests, likenum, attionnum, fansnum
-        FROM users WHERE user_id = ?`
+	SELECT signature, user_id, Uname, avatar, phone, email, address, birthday, registration_date, 
+		   sex, introduction, school, major, edutime, eduleval, companyname, positionname, 
+		   industry, interests, likenum, attionnum, fansnum
+	FROM users WHERE user_id = ?`
 
 	info := &model.PersonalInfo{}
 	var (
@@ -431,12 +432,29 @@ func GetPersonalInfo(db *sql.DB, uid string, requestid string) (*model.PersonalI
 	} else {
 		info.UImage = ""
 	}
-	info.Phone = phoneNull.String
-	info.Mail = emailNull.String
+
+	if requestid != uid {
+		info.Phone = "已隐藏"
+		info.Mail = "已隐藏"
+	} else {
+		info.Phone = phoneNull.String
+		info.Mail = emailNull.String
+	}
+
 	info.Address = addressNull.String
 	info.Birthday = birthdayNull.String
 	info.RegTime = registrationDate.String
-	info.Sex = strconv.FormatInt(sexNull.Int64, 10)
+	if sexNull.Valid {
+		if sexNull.Int64 == 1 {
+			info.Sex = "男"
+		} else if sexNull.Int64 == 2 {
+			info.Sex = "女"
+		} else {
+			info.Sex = "未知"
+		}
+	} else {
+		info.Sex = "未知"
+	}
 	info.Introduction = introductionNull.String
 	info.SchoolName = schoolNull.String
 	info.Major = majorNull.String
@@ -499,14 +517,13 @@ func isValidPhoneNumber(phone string) bool {
 	re := regexp.MustCompile(`^\d{11}$`)
 	return re.MatchString(phone)
 }
-
-// func decodeBase64Image(base64Str string) ([]byte, error) {
-// 	data, err := base64.StdEncoding.DecodeString(base64Str)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("解码 Base64 字符串失败: %v", err)
-// 	}
-// 	return data, nil
-// }
+func decodeBase64Image(base64Str string) ([]byte, error) {
+	data, err := base64.StdEncoding.DecodeString(base64Str)
+	if err != nil {
+		return nil, fmt.Errorf("解码 Base64 字符串失败: %v", err)
+	}
+	return data, nil
+}
 
 // 更新个人信息
 func UpdatePersonal(db *sql.DB, uid, fieldType, value string) error {
@@ -616,11 +633,11 @@ func UpdatePersonalInfo(c *gin.Context) {
 
 // 定义粉丝结构体类型
 type Follower struct {
-	FollowerID  int    `json:"follower_id"`
-	Uid         string `json:"uid"`
-	Avatar      string `json:"uimage"`
-	Uname       string `json:"uname"`
-	IsFollowing bool   `json:"isattion"`
+	FollowerID int    `json:"follower_id"`
+	Uid        string `json:"uid"`
+	Avatar     string `json:"uimage"`
+	Uname      string `json:"uname"`
+	IsAttion   bool   `json:"isattion"`
 }
 
 // 定义关注结构体类型
@@ -670,12 +687,12 @@ func GetFollowers(c *gin.Context) {
 	var followers []Follower
 
 	query := `
-        SELECT u.user_id, u.avatar, u.uname
-        FROM userfollows uf
-        JOIN users u ON uf.follower_id = u.user_id
-        WHERE uf.followed_id = ? 
-        LIMIT ? OFFSET ?
-    `
+   SELECT u.user_id, u.avatar, u.uname
+   FROM userfollows uf
+   JOIN users u ON uf.follower_id = u.user_id
+   WHERE uf.followed_id = ?
+   LIMIT ? OFFSET ?
+`
 	rows, err := db.Query(query, uid, pageSize, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"failreason": "查询粉丝失败"})
@@ -690,7 +707,7 @@ func GetFollowers(c *gin.Context) {
 			return
 		}
 		follower.Uid = strconv.Itoa(follower.FollowerID)
-		follower.IsFollowing = true
+		follower.IsAttion = true
 		if follower.Avatar == "" {
 			c.JSON(http.StatusInternalServerError, gin.H{"failreason": "头像地址为空"})
 			return
