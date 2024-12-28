@@ -257,7 +257,7 @@ func GetPersonalLikePosts(c *gin.Context) {
 		}
 
 		//检查是否互关
-		if log.FriendSee {
+		if log.FriendSee && uid != aimuid {
 			friendCheckQuery := `SELECT COUNT(*)
 			FROM userfollows f1
 			JOIN userfollows f2 
@@ -410,8 +410,7 @@ func GetPersonalCollectPosts(c *gin.Context) {
 			return
 		}
 
-		//检查是否互关
-		if log.FriendSee {
+		if log.FriendSee && uid!=aimuid {
 			friendCheckQuery := `SELECT COUNT(*)
 			FROM userfollows f1
 			JOIN userfollows f2 
@@ -428,7 +427,7 @@ func GetPersonalCollectPosts(c *gin.Context) {
 				continue
 			}
 		}
-
+        
 		if currentIndex >= startnumber && currentIndex < endnumber {
 			var sujects []string
 			if subjectsJSON != "" {
