@@ -266,7 +266,7 @@ func ReportComment(tx *sql.Tx, uid, comID, reason string,type1 string,) error {
 	query := "INSERT INTO CommentReports (reporter_id,comment_id,reason,report_time,rpttype) VALUES (?,?,?,?,?)"
 	_, err := tx.Exec(query, uid, comID, reason, time.Now(),type1)
 	if err != nil {
-		return fmt.Errorf("举报失败:sql语句插入失败")
+		return fmt.Errorf("sql语句插入失败")
 	}
 	return nil
 }
@@ -280,7 +280,7 @@ func ReportPost(tx *sql.Tx, uid, postID, reason string,type1 string) error {
 	_, err := tx.Exec(query, uid, postID, reason, time.Now(),type1)
 	if err != nil {
 		fmt.Print(err)
-		return fmt.Errorf("举报失败：sql插入举报帖子失败")
+		return fmt.Errorf("sql插入举报帖子失败")
 	}
 	return nil
 }

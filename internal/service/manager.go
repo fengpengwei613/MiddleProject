@@ -25,13 +25,13 @@ func GetReports(c *gin.Context) {
 
 	// 将 page 转换为整数
 	pageInt, err := strconv.Atoi(page)
-	if err != nil || pageInt < 0 {
+	if err != nil || pageInt < 1 {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的页数"})
 		return
 	}
 
 	pageSize := 10 // 每页 10 条数据
-	startNumber := pageInt * pageSize
+	startNumber := (pageInt-1) * pageSize
 
 	// 获取该用户举报的帖子、评论、回复等数据
 	query := `(
