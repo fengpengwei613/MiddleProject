@@ -100,7 +100,7 @@ func PublishReply(c *gin.Context) {
 
 func GetMoreComment(c *gin.Context) {
 	postidstr := c.DefaultQuery("logid", "-1")
-	nowcommentstr := c.DefaultQuery("nowcomment", "-1")
+	nowcommentstr := c.DefaultQuery("nowcomnum", "-1")
 	uidstr := c.DefaultQuery("uid", "-1")
 	postid, err_pid := strconv.Atoi(postidstr)
 	nowcomment, err_now := strconv.Atoi(nowcommentstr)
@@ -121,6 +121,29 @@ func GetMoreComment(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"comments": posts})
 }
 
+// 帖子内部评论结构体
+type CommentReply struct {
+	CID     string `json:"id"`
+	UID     string `json:"uid"`
+	Content string `json:"content"`
+	UName   string `json:"uname"`
+	UImage  string `json:"uimage"`
+	Time    string `json:"time"`
+	IsLike  bool   `json:"islike"`
+	Likenum int    `json:"likenum"`
+	Touid   string `json:"touid"`
+	Touname string `json:"touname"`
+}
+
+// func GetCommentReply(page_num int, requester_uid int, comid int) ([]CommentReply, error) {
+// 	db, err := repository.Connect()
+// 	if err != nil {
+// 		return err, nil
+// 	}
+// 	defer db.Close()
+
+// }
+
 func GetMoreReply(c *gin.Context) {
 	commentidstr := c.DefaultQuery("comid", "-1")
 	logidstr := c.DefaultQuery("logid", "-1")
@@ -129,8 +152,11 @@ func GetMoreReply(c *gin.Context) {
 	commentid, err_cid := strconv.Atoi(commentidstr)
 	nowreply, err_now := strconv.Atoi(nowreplystr)
 	uid, err_uid := strconv.Atoi(uidstr)
+	if err_uid != nil {
+		uid = -1
+	}
 	postid, err_pid := strconv.Atoi(logidstr)
-	if err_cid != nil || err_now != nil || err_uid != nil || err_pid != nil {
+	if err_cid != nil || err_now != nil || err_pid != nil {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}

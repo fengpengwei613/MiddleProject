@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func SendEmail(to string, subject string, body string) string {
+func SendEmail(to string, subject string, body string, model string) string {
 	db_link, err := repository.Connect()
 	if err != nil {
 		return "数据库连接失败"
@@ -21,9 +21,17 @@ func SendEmail(to string, subject string, body string) string {
 	row := db.QueryRow(query_s, to)
 	var email string
 	err = row.Scan(&email)
-	if err == nil {
-		db.Rollback()
-		return "邮箱已经注册"
+	if model == "regist" {
+
+		if err == nil {
+			db.Rollback()
+			return "邮箱已经注册"
+		}
+	} else if model == "forget" {
+		if err != nil {
+			db.Rollback()
+			return "邮箱未注册"
+		}
 	}
 	// 发送方的邮箱和密码
 	from := "code_rode@163.com"

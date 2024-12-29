@@ -74,21 +74,7 @@ func SendMailInterface(c *gin.Context) {
 		c.JSON(400, gin.H{"isok": false, "failreason": "缺少邮箱"})
 		return
 	}
-	//检查mail是否已经注册
-	db, err_conn := repository.Connect()
-	if err_conn != nil {
-		c.JSON(500, gin.H{"isok": false, "failreason": "连接数据库失败"})
-		return
 
-	}
-	query := "SELECT email FROM Users WHERE email = ?"
-	row := db.QueryRow(query, mail)
-	var email string
-	err_check := row.Scan(&email)
-	if err_check == nil {
-		c.JSON(400, gin.H{"isok": false, "failreason": "邮箱已经注册"})
-		return
-	}
 	//生成随机数
 	rand.Seed(time.Now().UnixNano())
 	randomNum := rand.Intn(999999-100000+1) + 100000
@@ -96,9 +82,9 @@ func SendMailInterface(c *gin.Context) {
 	//strnum := "123456"
 	var result string
 	if type_server == "regist" {
-		result = scripts.SendEmail(mail, "注册验证码", strnum)
+		result = scripts.SendEmail(mail, "注册验证码", strnum, "regist")
 	} else if type_server == "find" {
-		result = scripts.SendEmail(mail, "找回密码验证码", strnum)
+		result = scripts.SendEmail(mail, "找回密码验证码", strnum, "forget")
 	} else {
 		c.JSON(400, gin.H{"isok": false, "failreason": "无效的type"})
 		return

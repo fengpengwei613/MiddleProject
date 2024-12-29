@@ -117,12 +117,6 @@ func AddReply(replyerID int, PostID int, commentID int, content string) (error, 
 		db.Rollback()
 		return err_update, "更新评论回复数量失败", "0"
 	}
-	query = "UPDATE posts SET comment_count = comment_count + 1 WHERE post_id = ?"
-	_, err_update = db.Exec(query, PostID)
-	if err_update != nil {
-		db.Rollback()
-		return err_update, "更新帖子评论数量失败", "0"
-	}
 
 	err_commit := db.Commit()
 	if err_commit != nil {
