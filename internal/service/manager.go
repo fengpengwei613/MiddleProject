@@ -3,12 +3,12 @@ package service
 import (
 	"database/sql"
 	"fmt"
-    "encoding/json"
 	"middleproject/internal/repository"
+	"middleproject/scripts"
 	"net/http"
 	"strconv"
 	"time"
-
+    "strings"
 	"github.com/gin-gonic/gin"
 )
 
@@ -234,15 +234,18 @@ func GetReportInfo(c *gin.Context) {
             return
         }
 
-        if imagesJson != "" {
-            err := json.Unmarshal([]byte(imagesJson), &loginfo.Images)
-            if err != nil {
-                c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "解析图片数据失败"})
-                return
-            }
-        } else {
-            loginfo.Images = []string{} // 如果没有图片，确保它是一个空数组
-        }
+		paths := strings.Split(imagesJson, ",")
+		var urls []string
+		for _, path := range paths {
+			path = strings.Trim(path, `"`)
+			err, url := scripts.GetUrl(path)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err}) 
+			}
+			// 将 URL 添加到切片中
+			urls = append(urls, url)
+		}
+		loginfo.Images=urls
 
         c.JSON(http.StatusOK, gin.H{"isok": true, "loginfo": loginfo})
     }else if type1 == "comment" {
@@ -275,15 +278,18 @@ func GetReportInfo(c *gin.Context) {
             c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询评论对应的帖子失败"})
             return
         }
-        if imagesJson != "" {
-            err := json.Unmarshal([]byte(imagesJson), &loginfo.Images)
-            if err != nil {
-                c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "解析图片数据失败"})
-                return
-            }
-        } else {
-            loginfo.Images = []string{} // 如果没有图片，确保它是一个空数组
-        }
+		paths := strings.Split(imagesJson, ",")
+		var urls []string
+		for _, path := range paths {
+			path = strings.Trim(path, `"`)
+			err, url := scripts.GetUrl(path)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err}) 
+			}
+			// 将 URL 添加到切片中
+			urls = append(urls, url)
+		}
+		loginfo.Images=urls
         c.JSON(http.StatusOK, gin.H{"isok": true, "loginfo": loginfo,"commentinfo": commentinfo})
     }else if type1 == "reply" {
         if replyid == "" {
@@ -316,15 +322,18 @@ func GetReportInfo(c *gin.Context) {
             c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询回复对应的帖子失败"})
             return
         }
-        if imagesJson != "" {
-            err := json.Unmarshal([]byte(imagesJson), &loginfo.Images)
-            if err != nil {
-                c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "解析图片数据失败"})
-                return
-            }
-        } else {
-            loginfo.Images = []string{} // 如果没有图片，确保它是一个空数组
-        }
+		paths := strings.Split(imagesJson, ",")
+		var urls []string
+		for _, path := range paths {
+			path = strings.Trim(path, `"`)
+			err, url := scripts.GetUrl(path)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err}) 
+			}
+			// 将 URL 添加到切片中
+			urls = append(urls, url)
+		}
+		loginfo.Images=urls
 
 		query2 := "SELECT LEFT(c.content,30) AS content,c.commenter_id,u.uname FROM Comments c JOIN Users u ON c.commenter_id  = u.user_id JOIN Comments r ON c.comment_id = r.parent_comment_id WHERE r.comment_id = ?"
 		var commentinfo struct {
