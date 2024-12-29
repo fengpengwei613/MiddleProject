@@ -1,8 +1,8 @@
 package model
 
 import (
-	"fmt"
 	"database/sql"
+	"fmt"
 
 	"middleproject/internal/repository"
 	"strconv"
@@ -29,6 +29,14 @@ func (c *Comment) AddComment() (error, string, string) {
 	db, err_tx := db_link.Begin()
 	if err_tx != nil {
 		return err_tx, "事务开启失败", "0"
+	}
+	//检查用户是否被禁言/封号
+	var userPermission int
+	newquery := "SELECT user_id from usermutes where user_id = ? and end_time > now()"
+	err = db.QueryRow(newquery, c.CommenterID).Scan(&userPermission)
+	if err == nil {
+		db.Rollback()
+		return sql.ErrNoRows, "您已被禁言/封号", "0"
 	}
 	query := "INSERT INTO Comments (commenter_id,post_id, content) VALUES (?, ?, ?)"
 	result, err := db.Exec(query, c.CommenterID, c.PostID, c.Content)
@@ -68,10 +76,34 @@ func AddReply(replyerID int, PostID int, commentID int, content string) (error, 
 	if err_tx != nil {
 		return err_tx, "事务开启失败", "0"
 	}
-	query := "INSERT INTO comments (commenter_id, post_id, parent_comment_id, content) VALUES (?, ?, ?, ?)"
-	result, err_in := db.Exec(query, replyerID, PostID, commentID, content)
+	//检查用户是否被禁言/封号
+	var userPermission int
+	newquery := "SELECT user_id from usermutes where user_id = ? and end_time > now()"
+	err := db.QueryRow(newquery, replyerID).Scan(&userPermission)
+	if err == nil {
+		db.Rollback()
+		return sql.ErrNoRows, "您已被禁言/封号", "0"
+	}
+
+	var top_parentid int
+	newquery = "SELECT top_parentid FROM comments WHERE comment_id = ? and parent_comment_id is not null"
+	err = db.QueryRow(newquery, commentID).Scan(&top_parentid)
+	if err != nil {
+		top_parentid = 0
+	}
+	query := "INSERT INTO comments (commenter_id, post_id, parent_comment_id, content,top_parentid) VALUES (?, ?, ?, ?, ?)"
+	var result sql.Result
+	var err_in error
+	if top_parentid != 0 {
+		result, err_in = db.Exec(query, replyerID, PostID, commentID, content, top_parentid)
+	} else {
+		result, err_in = db.Exec(query, replyerID, PostID, commentID, content, commentID)
+		top_parentid = commentID
+	}
+
 	if err_in != nil {
 		db.Rollback()
+		fmt.Println(err_in.Error())
 		return err_in, "sql语句错误,评论创建失败", "0"
 	}
 	replyID, err_id := result.LastInsertId()
@@ -80,7 +112,7 @@ func AddReply(replyerID int, PostID int, commentID int, content string) (error, 
 		return err_id, "获取新评论ID失败", "0"
 	}
 	query = "UPDATE comments SET reply_count = reply_count + 1 WHERE comment_id = ?"
-	_, err_update := db.Exec(query, commentID)
+	_, err_update := db.Exec(query, top_parentid)
 	if err_update != nil {
 		db.Rollback()
 		return err_update, "更新评论回复数量失败", "0"
@@ -101,7 +133,7 @@ func AddReply(replyerID int, PostID int, commentID int, content string) (error, 
 }
 
 // 删除评论
-//假设用户表中判断是否是管理员的属性是permission，permission=1时是管理员
+// 假设用户表中判断是否是管理员的属性是permission，permission=1时是管理员
 func DeleteCommentByUser(commentID int, uid int, postID int) (error, string) {
 	db_link, err := repository.Connect()
 	if err != nil {

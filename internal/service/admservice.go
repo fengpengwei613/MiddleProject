@@ -602,11 +602,28 @@ func AdmDeleteComment(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
 		return
 	}
+	querystr := "SELECT post_id FROM comments WHERE comment_id = ?"
+	row := db.QueryRow(querystr, commentid)
+	var postid int
+	err = row.Scan(&postid)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子id失败"})
+		return
+	}
 	query := "DELETE FROM comments WHERE comment_id = ?"
 	_, err = db.Exec(query, commentid)
 	if err != nil {
 		db.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "评论删除失败"})
+		return
+	}
+	//更新帖子评论数
+	query = "UPDATE posts SET comment_count = comment_count - 1 WHERE post_id = ?"
+	_, err = db.Exec(query, postid)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "帖子评论数更新失败"})
 		return
 	}
 
@@ -654,6 +671,16 @@ func AdmDeleteReply(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
 		return
 	}
+	//查询评论top_parentid
+	query_2 := "SELECT top_parentid FROM comments WHERE comment_id = ?"
+	row := db.QueryRow(query_2, replyid)
+	var top_parentid int
+	err = row.Scan(&top_parentid)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询评论top_parentid失败"})
+		return
+	}
 	query := "DELETE FROM comments WHERE comment_id = ?"
 	_, err = db.Exec(query, replyid)
 	if err != nil {
@@ -661,6 +688,15 @@ func AdmDeleteReply(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "回复删除失败"})
 		return
 	}
+	//更新评论数
+	query = "UPDATE comments SET reply_count = reply_count - 1 WHERE comment_id = ?"
+	_, err = db.Exec(query, top_parentid)
+	if err != nil {
+		db.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "评论回复数更新失败"})
+		return
+	}
+
 	isok, info := ContentDelete("reply", replyid)
 	if !isok {
 		db.Rollback()

@@ -13,6 +13,35 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func judge_care(uid int, aimuid int) bool {
+	if uid == aimuid {
+		return true
+	}
+	db, err_conn := repository.Connect()
+	if err_conn != nil {
+		return false
+	}
+	defer db.Close()
+	query := "select follower_id from userfollows where follower_id=? and followed_id=?"
+	row := db.QueryRow(query, uid, aimuid)
+	var follower_id int
+	err_scan := row.Scan(&follower_id)
+	if err_scan != nil {
+		return false
+	} else {
+		query = "select follower_id from userfollows where follower_id=? and followed_id=?"
+		row = db.QueryRow(query, aimuid, uid)
+		var follower_id2 int
+		err_scan = row.Scan(&follower_id2)
+		if err_scan != nil {
+			return false
+		} else {
+			return true
+		}
+
+	}
+}
+
 type Advpost struct {
 	PostID      int      `json:"id"`
 	Title       string   `json:"title"`
@@ -38,7 +67,7 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 	var posts []Advpost
 	if isattention == "true" {
 		//获取关注的人的帖子，按喜欢数量排序
-		query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=? order by posts.view_count"
+		query := "SELECT posts.friend_see,posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=? order by posts.publish_time DESC"
 		rows, err_query := db.Query(query, uid)
 		if err_query != nil {
 			fmt.Println(err_query.Error())
@@ -49,11 +78,16 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 
 			var subject sql.NullString
 			var uidint int
-			err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
+			var friend_see bool
+			err_scan := rows.Scan(&friend_see, &post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
 			if err_scan != nil {
 				fmt.Println(err_scan.Error())
 				return posts, err_scan, 0
 			}
+			if friend_see == true && judge_care(uid, uidint) == false {
+				continue
+			}
+
 			post.Time = post.Time[0 : len(post.Time)-3]
 			post.Uid = strconv.Itoa(uidint)
 			var err_url error
@@ -107,7 +141,7 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 
 	} else {
 		//获取所有的帖子，按喜欢数量排序
-		query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id order by posts.view_count"
+		query := "SELECT posts.friend_see ,posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id order by posts.publish_time DESC"
 		rows, err_query := db.Query(query)
 		if err_query != nil {
 			fmt.Println(err_query.Error())
@@ -117,11 +151,15 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 			var post Advpost
 			var subject sql.NullString
 			var uidint int
-			err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
+			var friend_see bool
+			err_scan := rows.Scan(&friend_see, &post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
 			post.Time = post.Time[0 : len(post.Time)-3]
 			if err_scan != nil {
 				fmt.Println(err_scan.Error())
 				return posts, err_scan, 0
+			}
+			if friend_see && judge_care(uid, uidint) == false {
+				continue
 			}
 			post.Uid = strconv.Itoa(uidint)
 			var err_url error
@@ -208,7 +246,7 @@ func PublishPost(c *gin.Context) {
 	data.UserID = uid
 	erro, msg, idstr := data.AddPost()
 	if erro != nil {
-		fmt.Println(msg)
+
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": msg})
 		return
 	}
@@ -287,14 +325,14 @@ func GetCommentInfo(page_num int, postid int, uid222 int, comid int) (error, []P
 	var query string
 	var rows *sql.Rows
 	if comid == -1 {
-		query = "select comments.comment_id, users.Uname,comments.content,users.user_id,users.avatar,comments.comment_time,comments.like_count,comments.reply_count from users,comments where users.user_id=comments.commenter_id AND comments.post_id=? AND parent_comment_id is null order by comments.like_count desc limit ?,10"
+		query = "select comments.comment_id, users.Uname,comments.content,users.user_id,users.avatar,comments.comment_time,comments.like_count,comments.reply_count from users,comments where users.user_id=comments.commenter_id AND comments.post_id=? AND parent_comment_id is null order by comment_time desc limit ?,10"
 		var err_query error
 		rows, err_query = db.Query(query, postid, page_num)
 		if err_query != nil {
 			return err_query, comments
 		}
 	} else {
-		query = "select comments.comment_id, users.Uname,comments.content,users.user_id,users.avatar,comments.comment_time,comments.like_count,comments.reply_count from users,comments where users.user_id=comments.commenter_id AND comments.post_id=? AND parent_comment_id = ? order by comments.like_count desc limit ?,5"
+		query = "select comments.comment_id, users.Uname,comments.content,users.user_id,users.avatar,comments.comment_time,comments.like_count,comments.reply_count from users,comments where users.user_id=comments.commenter_id AND comments.post_id=? AND top_parentid = ? order by comments.comment_time desc limit ?,5"
 		var err_query2 error
 		rows, err_query2 = db.Query(query, postid, comid, page_num)
 		if err_query2 != nil {
@@ -323,8 +361,6 @@ func GetCommentInfo(page_num int, postid int, uid222 int, comid int) (error, []P
 			query = "select liker_id from commentlikes where liker_id=? and comment_id=?"
 			fmt.Println(uid, cid)
 			row := db.QueryRow(query, uid222, cid)
-			fmt.Println("uid2222:", uid222)
-			fmt.Println(row)
 
 			var like_id int
 			err_scan = row.Scan(&like_id)

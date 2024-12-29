@@ -202,6 +202,14 @@ func DeleteComment(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"isok": false, "failreason": "无权限删除该评论"})
 		return
 	}
+	//查询评论的帖子id
+	querystr := "SELECT post_id FROM comments WHERE comment_id = ?"
+	var post_id int
+	err = db.QueryRow(querystr, commentID).Scan(&post_id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "获取评论的帖子id失败"})
+		return
+	}
 
 	_, err = db.Exec("DELETE FROM comments WHERE comment_id = ?", commentID)
 	if err != nil {
@@ -209,7 +217,13 @@ func DeleteComment(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"isok": true, "message": "删除评论成功"})
+	_, err = db.Exec("UPDATE posts SET comment_count = comment_count - 1 WHERE post_id = ?", post_id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "更新帖子评论数量失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"isok": true})
 }
 
 // 删除回复接口
@@ -274,6 +288,14 @@ func DeleteReply(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"isok": false, "failreason": "无权限删除该回复"})
 		return
 	}
+	//查询评论的top_parentid
+	querystr := "SELECT top_parentid FROM comments WHERE comment_id = ?"
+	var top_parent_id int
+	err = db.QueryRow(querystr, replyID).Scan(&top_parent_id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "获取回复的top_parent_id失败"})
+		return
+	}
 
 	_, err = db.Exec("DELETE FROM comments WHERE comment_id = ?", replyID)
 	if err != nil {
@@ -282,11 +304,11 @@ func DeleteReply(c *gin.Context) {
 		return
 	}
 
-	// _, err = db.Exec("UPDATE comments SET reply_count = reply_count - 1 WHERE comment_id = ?", commentID)
-	// if err != nil {
-	// 	c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "更新评论回复数量失败"})
-	// 	return
-	// }
+	_, err = db.Exec("UPDATE comments SET reply_count = reply_count - 1 WHERE comment_id = ?", top_parent_id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "更新评论回复数量失败"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{"isok": true, "message": "删除回复成功"})
 }

@@ -1,7 +1,5 @@
 package model
 
-//package main
-
 import (
 	"database/sql"
 	"encoding/json"
@@ -38,6 +36,15 @@ func (p *Post) AddPost() (error, string, string) {
 	if err_tx != nil {
 		return err_tx, "事务开启失败", "0"
 	}
+	//查看用户是否禁言/封号
+	var userPermission int
+	query := "SELECT user_id from usermutes where user_id = ? and end_time > now()"
+	err := db.QueryRow(query, p.UserID).Scan(&userPermission)
+	if err == nil {
+		db.Rollback()
+		return sql.ErrNoRows, "用户已被禁言/封号", "0"
+	}
+
 	query_str := "INSERT INTO posts (user_id, title, content, images, friend_see, post_subject) " +
 		"VALUES(?, ?, ?, ?, ?, ?)"
 	var image_url = p.Images
