@@ -852,6 +852,7 @@ func AdmBan(c *gin.Context) {
 		_, err = db.Exec(query, dataid)
 		if err != nil {
 			db.Rollback()
+			fmt.Println(err.Error())
 			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "帖子删除失败"})
 			return
 		}
@@ -927,7 +928,7 @@ func AdmIgnore(c *gin.Context) {
 // 管理员警告
 func AdmWarn(c *gin.Context) {
 	uidstr := c.DefaultQuery("uid", "-1")
-	content := c.DefaultQuery("content", "")
+	//content := c.DefaultQuery("content", "")
 	ruidstr := c.DefaultQuery("ruid", "-1")
 	reportidstr := c.DefaultQuery("rid", "-1")
 	typestr := c.DefaultQuery("type", "错误")
@@ -939,6 +940,17 @@ func AdmWarn(c *gin.Context) {
 		return
 	}
 	if typestr == "错误" {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+	var data map[string]string
+	err := c.BindJSON(&data)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+	content, ok := data["content"]
+	if !ok {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
 		return
 	}

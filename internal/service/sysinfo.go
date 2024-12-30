@@ -39,7 +39,7 @@ func Getsysinfo(c *gin.Context) {
 	}
 	for rows.Next() {
 		var msg Msgobj
-		err = rows.Scan(&msg.Msgid, &msg.Type, &msg.Time, &msg.Content)
+		err = rows.Scan(&msg.Msgid, &msg.Type, &msg.Content, &msg.Time, &uid)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"msgobj": posts, "totalPages": 0})
 			return
