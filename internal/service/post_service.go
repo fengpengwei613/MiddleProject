@@ -13,35 +13,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func judge_care(uid int, aimuid int) bool {
-	if uid == aimuid {
-		return true
-	}
-	db, err_conn := repository.Connect()
-	if err_conn != nil {
-		return false
-	}
-	defer db.Close()
-	query := "select follower_id from userfollows where follower_id=? and followed_id=?"
-	row := db.QueryRow(query, uid, aimuid)
-	var follower_id int
-	err_scan := row.Scan(&follower_id)
-	if err_scan != nil {
-		return false
-	} else {
-		query = "select follower_id from userfollows where follower_id=? and followed_id=?"
-		row = db.QueryRow(query, aimuid, uid)
-		var follower_id2 int
-		err_scan = row.Scan(&follower_id2)
-		if err_scan != nil {
-			return false
-		} else {
-			return true
-		}
-
-	}
-}
-
 type Advpost struct {
 	PostID      int      `json:"id"`
 	Title       string   `json:"title"`
@@ -66,6 +37,7 @@ func AdvisePost(uid int, page int, isattention string, ordertype string) ([]Advp
 	defer db.Close()
 	var posts []Advpost
 	var orderstr string
+	var totalpage int
 	switch ordertype {
 	case "time":
 		orderstr = "order by posts.publish_time DESC"
@@ -75,8 +47,22 @@ func AdvisePost(uid int, page int, isattention string, ordertype string) ([]Advp
 		orderstr = "order by posts.favorite_count DESC"
 	}
 	if isattention == "true" {
+		//计算帖子页数
+		myquery := "SELECT count(*) from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=? and (posts.friend_see = 0 OR (posts.friend_see != 0 AND care(userfollows.follower_id, userfollows.followed_id) = TRUE ))"
+		row := db.QueryRow(myquery, uid)
+		err_scan := row.Scan(&totalpage)
+		if err_scan != nil {
+			return posts, err_scan, 0
+		}
+		var temp int
+		temp = totalpage / 10
+		if totalpage%10 != 0 {
+			temp++
+		}
+		totalpage = temp
+
 		//获取关注的人的帖子，按喜欢数量排序
-		query := "SELECT posts.friend_see,posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=?"
+		query := "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=? and (posts.friend_see = 0 OR (posts.friend_see != 0 AND care(userfollows.follower_id, userfollows.followed_id) = TRUE ))"
 		query = query + " " + orderstr
 		query += " limit ?,10"
 
@@ -90,14 +76,11 @@ func AdvisePost(uid int, page int, isattention string, ordertype string) ([]Advp
 
 			var subject sql.NullString
 			var uidint int
-			var friend_see bool
-			err_scan := rows.Scan(&friend_see, &post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
+
+			err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
 			if err_scan != nil {
 				fmt.Println(err_scan.Error())
 				return posts, err_scan, 0
-			}
-			if friend_see == true && judge_care(uid, uidint) == false {
-				continue
 			}
 
 			post.Time = post.Time[0 : len(post.Time)-3]
@@ -153,10 +136,49 @@ func AdvisePost(uid int, page int, isattention string, ordertype string) ([]Advp
 
 	} else {
 		//获取所有的帖子，按喜欢数量排序
-		query := "SELECT posts.friend_see ,posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id"
-		query = query + " " + orderstr
-		query += " limit ?,10"
-		rows, err_query := db.Query(query, page*10)
+		var query string
+		var rows *sql.Rows
+		var err_query error
+		if uid == -1 {
+			//计算帖子页数
+			myquery := "SELECT count(*) from posts where posts.friend_see = 0"
+			row := db.QueryRow(myquery)
+			err_scan := row.Scan(&totalpage)
+			if err_scan != nil {
+				return posts, err_scan, 0
+			}
+			var temp int
+			temp = totalpage / 10
+			if totalpage%10 != 0 {
+				temp++
+			}
+			totalpage = temp
+
+			query = "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id and posts.friend_see = 0"
+			query = query + " " + orderstr
+			query += " limit ?,10"
+			rows, err_query = db.Query(query, page*10)
+		} else {
+			//计算帖子页数
+			myquery := "SELECT count(*) from posts,users where posts.user_id=users.user_id and (posts.friend_see = 0 OR (posts.friend_see != 0 AND care(?, users.user_id) = TRUE ))"
+			row := db.QueryRow(myquery, uid)
+			err_scan := row.Scan(&totalpage)
+			if err_scan != nil {
+				return posts, err_scan, 0
+			}
+			var temp int
+			fmt.Println("totalpage:", totalpage)
+			temp = totalpage / 10
+			if totalpage%10 != 0 {
+				temp++
+			}
+			totalpage = temp
+
+			query = "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id and (posts.friend_see = 0 OR (posts.friend_see != 0 AND care(?, users.user_id) = TRUE ))"
+			query = query + " " + orderstr
+			query += " limit ?,10"
+			rows, err_query = db.Query(query, uid, page*10)
+		}
 		if err_query != nil {
 			fmt.Println(err_query.Error())
 			return posts, err_query, 0
@@ -165,16 +187,14 @@ func AdvisePost(uid int, page int, isattention string, ordertype string) ([]Advp
 			var post Advpost
 			var subject sql.NullString
 			var uidint int
-			var friend_see bool
-			err_scan := rows.Scan(&friend_see, &post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
+
+			err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
 			post.Time = post.Time[0 : len(post.Time)-3]
 			if err_scan != nil {
 				fmt.Println(err_scan.Error())
 				return posts, err_scan, 0
 			}
-			if friend_see && judge_care(uid, uidint) == false {
-				continue
-			}
+
 			post.Uid = strconv.Itoa(uidint)
 			var err_url error
 			err_url, post.Uimge = scripts.GetUrl(post.Uimge)
@@ -230,18 +250,6 @@ func AdvisePost(uid int, page int, isattention string, ordertype string) ([]Advp
 			posts = append(posts, post)
 		}
 	}
-	query := "SELECT count(*) from posts"
-	row := db.QueryRow(query)
-	var totalpage int
-	err_scan := row.Scan(&totalpage)
-	if err_scan != nil {
-		return posts, err_scan, 0
-	}
-	totalpage = totalpage / 10
-	if totalpage%10 != 0 {
-		totalpage++
-	}
-
 	return posts, nil, totalpage
 }
 
@@ -285,8 +293,6 @@ func GetRecommendPost(c *gin.Context) {
 		return
 	}
 	posts, err_adv, num := AdvisePost(uid, page, isattention, ordertype)
-
-	fmt.Println(posts)
 	if err_adv != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"logs": posts, "totalPages": 0})
 		return
@@ -614,32 +620,359 @@ func DeletePost(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"isok": true, "message": msg})
 }
 
-func searchStrategy(page int, uid int, key string) ([]Advpost, error, int) {
+func searchStrategy(page int, uid int, key string, ordertype string) ([]Advpost, error, int) {
 	db_conn, err_conn := repository.Connect()
 	if err_conn != nil {
 		return nil, err_conn, 0
 	}
 	defer db_conn.Close()
+	var sql2 string
+	if ordertype == "time" {
+		sql2 = " order by posts.publish_time DESC"
+	} else if ordertype == "like" {
+		sql2 = " order by posts.like_count DESC"
+	} else if ordertype == "collect" {
+		sql2 = " order by posts.favorite_count DESC"
+	}
+
 	var posts []Advpost
+	var totalpage int
+	var query string
+	var rows *sql.Rows
+	var err_query error
+	if key[0] == '#' {
+		key = key[1:]
+		myquery := "SELECT count(*) from posts where (posts.post_subject like ? or posts.content like ?) and (posts.friend_see = 0 OR (posts.friend_see != 0 AND care(?, posts.user_id) = TRUE ))"
+		row := db_conn.QueryRow(myquery, "%"+key+"%", "%"+key+"%", uid)
+		err_scan := row.Scan(&totalpage)
+		if err_scan != nil {
+			return posts, err_scan, 0
+		}
+		var temp int
+		temp = totalpage / 10
+		if totalpage%10 != 0 {
+			temp++
+		}
+		totalpage = temp
+
+		query = "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id and (posts.post_subject like ? or posts.content like ?) and (posts.friend_see = 0 OR (posts.friend_see != 0 AND care(?, posts.user_id) = TRUE ))"
+		query = query + sql2
+		query += " limit ?,10"
+		rows, err_query = db_conn.Query(query, "%"+key+"%", "%"+key+"%", uid, page*10)
+	} else {
+		myquery := "SELECT count(*) from posts where (posts.title like ? or posts.content like ?) and (posts.friend_see = 0 OR (posts.friend_see != 0 AND care(?, posts.user_id) = TRUE ))"
+		row := db_conn.QueryRow(myquery, "%"+key+"%", "%"+key+"%", uid)
+		err_scan := row.Scan(&totalpage)
+		if err_scan != nil {
+			return posts, err_scan, 0
+		}
+		var temp int
+		temp = totalpage / 10
+		if totalpage%10 != 0 {
+			temp++
+		}
+		totalpage = temp
+
+		query = "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id and (posts.title like ? or posts.content like ?) and (posts.friend_see = 0 OR (posts.friend_see != 0 AND care(?, posts.user_id) = TRUE ))"
+		query = query + sql2
+		query += " limit ?,10"
+		rows, err_query = db_conn.Query(query, "%"+key+"%", "%"+key+"%", uid, page*10)
+
+	}
+	if err_query != nil {
+		return posts, err_query, 0
+	}
+	for rows.Next() {
+		var post Advpost
+		var subject sql.NullString
+		var uidint int
+		err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
+		if err_scan != nil {
+			return posts, err_scan, 0
+		}
+		post.Time = post.Time[0 : len(post.Time)-3]
+		post.Uid = strconv.Itoa(uidint)
+		var err_url error
+		err_url, post.Uimge = scripts.GetUrl(post.Uimge)
+		if err_url != nil {
+			return posts, err_url, 0
+		}
+		if subject.Valid {
+			str := subject.String
+			post.Subject = strings.Split(str[1:len(str)-1], ",")
+			//去除双引号
+			for i := 0; i < len(post.Subject); i++ {
+				if i == 0 {
+					post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+				} else {
+					post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+				}
+			}
+		}
+		//判断是否喜欢
+		query = "select liker_id from postlikes where liker_id=? and post_id=?"
+		row := db_conn.QueryRow(query, uid, post.PostID)
+		var like_id int
+		err_scan = row.Scan(&like_id)
+		if err_scan != nil {
+			post.Islike = false
+		} else {
+			post.Islike = true
+		}
+		//判断是否收藏
+		query = "select user_id from PostFavorites where user_id=? and post_id=?"
+		row = db_conn.QueryRow(query, uid, post.PostID)
+		var favorite_id int
+		err_scan = row.Scan(&favorite_id)
+		if err_scan != nil {
+			post.Iscollect = false
+		} else {
+			post.Iscollect = true
+		}
+		if len(post.SomeContent) > 300 {
+			post.SomeContent = post.SomeContent[0:300]
+			post.SomeContent = post.SomeContent + "..."
+		}
+		posts = append(posts, post)
+	}
+
+	return posts, nil, totalpage
+}
+func search_isattion(page int, uid int, key string, ordertype string) ([]Advpost, error, int) {
+	db_conn, err_conn := repository.Connect()
+	if err_conn != nil {
+		return nil, err_conn, 0
+	}
+	defer db_conn.Close()
+	var sql2 string
+	if ordertype == "time" {
+		sql2 = " order by posts.publish_time DESC"
+	} else if ordertype == "like" {
+		sql2 = " order by posts.like_count DESC"
+	} else if ordertype == "collect" {
+		sql2 = " order by posts.favorite_count DESC"
+	}
+	var posts []Advpost
+	var totalpage int
+	var query string
+	var rows *sql.Rows
+	var err_query error
+	if key[0] == '#' {
+		key = key[1:]
+		myquery := "SELECT count(*) from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=? and (posts.friend_see = 0 OR (posts.friend_see != 0 AND care(userfollows.follower_id, userfollows.followed_id) = TRUE )) and posts.post_subject like ?"
+		row := db_conn.QueryRow(myquery, uid, "%"+key+"%")
+		err_scan := row.Scan(&totalpage)
+		if err_scan != nil {
+			return posts, err_scan, 0
+		}
+		var temp int
+		temp = totalpage / 10
+		if totalpage%10 != 0 {
+			temp++
+		}
+		totalpage = temp
+
+		query = "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=? and (posts.friend_see = 0 OR (posts.friend_see != 0 AND care(userfollows.follower_id, userfollows.followed_id) = TRUE )) and (posts.post_subject like ? or posts.content like ?)"
+		query = query + sql2
+		query += " limit ?,10"
+		rows, err_query = db_conn.Query(query, uid, "%"+key+"%", "%"+key+"%", page*10)
+	} else {
+		myquery := "SELECT count(*) from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=? and (posts.friend_see = 0 OR (posts.friend_see != 0 AND care(userfollows.follower_id, userfollows.followed_id) = TRUE )) and (posts.title like ? or posts.content like ?)"
+		row := db_conn.QueryRow(myquery, uid, "%"+key+"%", "%"+key+"%")
+		err_scan := row.Scan(&totalpage)
+		if err_scan != nil {
+			return posts, err_scan, 0
+		}
+		var temp int
+		temp = totalpage / 10
+		if totalpage%10 != 0 {
+			temp++
+		}
+		totalpage = temp
+
+		query = "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=? and (posts.friend_see = 0 OR (posts.friend_see != 0 AND care(userfollows.follower_id, userfollows.followed_id) = TRUE )) and (posts.title like ? or posts.content like ?)"
+		query = query + sql2
+		query += " limit ?,10"
+		rows, err_query = db_conn.Query(query, uid, "%"+key+"%", "%"+key+"%", page*10)
+	}
+	if err_query != nil {
+		return posts, err_query, 0
+	}
+	for rows.Next() {
+		var post Advpost
+		var subject sql.NullString
+		var uidint int
+		err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
+		if err_scan != nil {
+			return posts, err_scan, 0
+		}
+		post.Time = post.Time[0 : len(post.Time)-3]
+		post.Uid = strconv.Itoa(uidint)
+		var err_url error
+		err_url, post.Uimge = scripts.GetUrl(post.Uimge)
+		if err_url != nil {
+			return posts, err_url, 0
+		}
+		if subject.Valid {
+			str := subject.String
+			post.Subject = strings.Split(str[1:len(str)-1], ",")
+			//去除双引号
+			for i := 0; i < len(post.Subject); i++ {
+				if i == 0 {
+					post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+				} else {
+					post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+				}
+			}
+		}
+		//判断是否喜欢
+		query = "select liker_id from postlikes where liker_id=? and post_id=?"
+		row := db_conn.QueryRow(query, uid, post.PostID)
+		var like_id int
+		err_scan = row.Scan(&like_id)
+		if err_scan != nil {
+			post.Islike = false
+		} else {
+			post.Islike = true
+		}
+		//判断是否收藏
+		query = "select user_id from PostFavorites where user_id=? and post_id=?"
+		row = db_conn.QueryRow(query, uid, post.PostID)
+		var favorite_id int
+		err_scan = row.Scan(&favorite_id)
+		if err_scan != nil {
+			post.Iscollect = false
+		} else {
+			post.Iscollect = true
+		}
+		if len(post.SomeContent) > 300 {
+			post.SomeContent = post.SomeContent[0:300]
+			post.SomeContent = post.SomeContent + "..."
+		}
+		posts = append(posts, post)
+	}
+	return posts, nil, totalpage
+
 	return posts, nil, 0
 }
-func search_isattion(page int, uid int, key string) ([]Advpost, error, int) {
+func search_aimuid(page int, uid int, key string, aimuid int, ordertype string) ([]Advpost, error, int) {
 	db_conn, err_conn := repository.Connect()
 	if err_conn != nil {
 		return nil, err_conn, 0
 	}
 	defer db_conn.Close()
-	var posts []Advpost
-	return posts, nil, 0
-}
-func search_aimuid(page int, uid int, key string, aimuid int) ([]Advpost, error, int) {
-	db_conn, err_conn := repository.Connect()
-	if err_conn != nil {
-		return nil, err_conn, 0
+	var sql2 string
+	if ordertype == "time" {
+		sql2 = " order by posts.publish_time DESC"
+	} else if ordertype == "like" {
+		sql2 = " order by posts.like_count DESC"
+	} else if ordertype == "collect" {
+		sql2 = " order by posts.favorite_count DESC"
 	}
-	defer db_conn.Close()
 	var posts []Advpost
-	return posts, nil, 0
+	var totalpage int
+	var query string
+	var rows *sql.Rows
+	var err_query error
+	if key[0] == '#' {
+		key = key[1:]
+		myquery := "SELECT count(*) from posts,users where posts.user_id=users.user_id and posts.user_id=? and posts.post_subject like ? and (posts.friend_see = 0 or (posts.friend_see != 0 AND care(?, users.user_id) = TRUE ))"
+		row := db_conn.QueryRow(myquery, aimuid, "%"+key+"%", uid)
+		err_scan := row.Scan(&totalpage)
+		if err_scan != nil {
+			return posts, err_scan, 0
+		}
+		var temp int
+		temp = totalpage / 10
+		if totalpage%10 != 0 {
+			temp++
+		}
+		totalpage = temp
+
+		query = "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id and posts.user_id=? and posts.post_subject like ? and (posts.friend_see = 0 or (posts.friend_see != 0 AND care(?, users.user_id) = TRUE ))"
+		query = query + sql2
+		query += " limit ?,10"
+		rows, err_query = db_conn.Query(query, aimuid, "%"+key+"%", uid, page*10)
+	} else {
+		myquery := "Select count(*) from posts,users where posts.user_id=users.user_id and posts.user_id=? and posts.title like ? or posts.content like ? and (posts.friend_see = 0 or (posts.friend_see != 0 AND care(?, users.user_id) = TRUE ))"
+		row := db_conn.QueryRow(myquery, aimuid, "%"+key+"%", "%"+key+"%", uid)
+		err_scan := row.Scan(&totalpage)
+		if err_scan != nil {
+			return posts, err_scan, 0
+		}
+		var temp int
+		temp = totalpage / 10
+		if totalpage%10 != 0 {
+			temp++
+		}
+		totalpage = temp
+
+		query = "SELECT posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id and posts.user_id=? and posts.title like ? or posts.content like ? and (posts.friend_see = 0 or (posts.friend_see != 0 AND care(?, users.user_id) = TRUE ))"
+		query = query + sql2
+		query += " limit ?,10"
+		rows, err_query = db_conn.Query(query, aimuid, "%"+key+"%", "%"+key+"%", uid, page*10)
+	}
+	if err_query != nil {
+		return posts, err_query, 0
+	}
+	for rows.Next() {
+		var post Advpost
+		var subject sql.NullString
+		var uidint int
+		err_scan := rows.Scan(&post.PostID, &post.Title, &post.Uname, &uidint, &post.Uimge, &post.Time, &subject, &post.SomeContent, &post.Likenum, &post.Collectnum)
+		if err_scan != nil {
+			return posts, err_scan, 0
+		}
+		post.Time = post.Time[0 : len(post.Time)-3]
+		post.Uid = strconv.Itoa(uidint)
+		var err_url error
+		err_url, post.Uimge = scripts.GetUrl(post.Uimge)
+		if err_url != nil {
+			return posts, err_url, 0
+		}
+		if subject.Valid {
+			str := subject.String
+			post.Subject = strings.Split(str[1:len(str)-1], ",")
+			//去除双引号
+			for i := 0; i < len(post.Subject); i++ {
+				if i == 0 {
+					post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+				} else {
+					post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+				}
+			}
+		} else {
+			post.Subject = []string{"无关键字"}
+
+		}
+		//判断是否喜欢
+		query = "select liker_id from postlikes where liker_id=? and post_id=?"
+		row := db_conn.QueryRow(query, uid, post.PostID)
+		var like_id int
+		err_scan = row.Scan(&like_id)
+		if err_scan != nil {
+			post.Islike = false
+		} else {
+			post.Islike = true
+		}
+		//判断是否收藏
+		query = "select user_id from PostFavorites where user_id=? and post_id=?"
+		row = db_conn.QueryRow(query, uid, post.PostID)
+		var favorite_id int
+		err_scan = row.Scan(&favorite_id)
+		if err_scan != nil {
+			post.Iscollect = false
+		} else {
+			post.Iscollect = true
+		}
+		if len(post.SomeContent) > 300 {
+			post.SomeContent = post.SomeContent[0:300]
+			post.SomeContent = post.SomeContent + "..."
+		}
+		posts = append(posts, post)
+	}
+
+	return posts, nil, totalpage
 }
 
 func SearchPost(c *gin.Context) {
@@ -647,6 +980,7 @@ func SearchPost(c *gin.Context) {
 	isattion := c.DefaultQuery("isattion", "false")
 	uidstr := c.DefaultQuery("uid", "-1")
 	aimuidstr := c.DefaultQuery("aimuid", "-1")
+	ordertype := c.DefaultQuery("ordertype", "time")
 	page, err_page := strconv.Atoi(pagestr)
 	uid, err_uid := strconv.Atoi(uidstr)
 	aimuid, err_aimuid := strconv.Atoi(aimuidstr)
@@ -655,10 +989,11 @@ func SearchPost(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"logs": posts, "totalPages": -1})
 		return
 	}
-	if page == -1 || uid == -1 {
+	if page == -1 {
 		c.JSON(http.StatusBadRequest, gin.H{"logs": posts, "totalPages": -1})
 		return
 	}
+	page = page - 1
 	var data map[string]string
 	if err_bind := c.ShouldBindJSON(&data); err_bind != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"logs": posts, "totalPages": -1})
@@ -668,11 +1003,11 @@ func SearchPost(c *gin.Context) {
 	var err_adv error
 	var num int
 	if isattion == "true" {
-		posts, err_adv, num = search_isattion(page, uid, key)
+		posts, err_adv, num = search_isattion(page, uid, key, ordertype)
 	} else if aimuid != -1 {
-		posts, err_adv, num = search_aimuid(page, uid, key, aimuid)
+		posts, err_adv, num = search_aimuid(page, uid, key, aimuid, ordertype)
 	} else {
-		posts, err_adv, num = searchStrategy(page, uid, key)
+		posts, err_adv, num = searchStrategy(page, uid, key, ordertype)
 	}
 	if err_adv != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"logs": posts, "totalPages": 0})
