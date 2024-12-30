@@ -200,6 +200,26 @@ LIMIT ?,?
 	})
 }
 
+func extractStringInQuotes(str string) string {
+	// 查找第一个引号的索引
+	startIndex := strings.Index(str, "\"")
+	if startIndex == -1 {
+		return "" // 没有找到开始的双引号
+	}
+
+	// 查找第二个引号的索引
+	endIndex := strings.Index(str[startIndex+1:], "\"")
+	if endIndex == -1 {
+		return "" // 没有找到结束的双引号
+	}
+
+	// 返回引号之间的内容，去掉双引号
+	return str[startIndex+1 : startIndex+endIndex+1]
+}
+
+
+
+
 // 获取举报目标详情
 func GetReportInfo(c *gin.Context) {
 	db, err := repository.Connect()
@@ -233,16 +253,17 @@ func GetReportInfo(c *gin.Context) {
             c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子失败"})
             return
         }
-
+	    imagesJson=imagesJson[1:len(imagesJson)-1]
 		paths := strings.Split(imagesJson, ",")
+
 		var urls []string
 		for _, path := range paths {
-			path = strings.Trim(path, `"`)
-			err, url := scripts.GetUrl(path)
+			path = extractStringInQuotes(path)
+ 			err, url := scripts.GetUrl(path)
+			fmt.Printf(path)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err}) 
+			    c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": url}) 
 			}
-			// 将 URL 添加到切片中
 			urls = append(urls, url)
 		}
 		loginfo.Images=urls
@@ -278,13 +299,14 @@ func GetReportInfo(c *gin.Context) {
             c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询评论对应的帖子失败"})
             return
         }
+		imagesJson=imagesJson[1:len(imagesJson)-1]
 		paths := strings.Split(imagesJson, ",")
 		var urls []string
 		for _, path := range paths {
-			path = strings.Trim(path, `"`)
+			path = extractStringInQuotes(path)
 			err, url := scripts.GetUrl(path)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err}) 
+				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": url}) 
 			}
 			// 将 URL 添加到切片中
 			urls = append(urls, url)
@@ -322,13 +344,15 @@ func GetReportInfo(c *gin.Context) {
             c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询回复对应的帖子失败"})
             return
         }
+		imagesJson=imagesJson[1:len(imagesJson)-1]
 		paths := strings.Split(imagesJson, ",")
+
 		var urls []string
 		for _, path := range paths {
-			path = strings.Trim(path, `"`)
+			path=extractStringInQuotes(path)
 			err, url := scripts.GetUrl(path)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err}) 
+				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": url}) 
 			}
 			// 将 URL 添加到切片中
 			urls = append(urls, url)

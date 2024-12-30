@@ -7,7 +7,7 @@ import (
 	"middleproject/scripts"
 	"net/http"
 	"strconv"
-
+    "database/sql"
 	"github.com/gin-gonic/gin"
 )
 
@@ -50,7 +50,7 @@ func GetPersonalPostLogs(c *gin.Context) {
 
 	//查看页数是否无效
 	pageint, err := strconv.Atoi(page)
-	if err != nil || pageint < 0 {
+	if err != nil || pageint < 1 {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的页数"})
 		return
 	}
@@ -68,8 +68,14 @@ func GetPersonalPostLogs(c *gin.Context) {
 	ORDER BY p.publish_time DESC`
 	rows, err := db.Query(query, aimuid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子失败"})
-		return
+		if err == sql.ErrNoRows {
+		    c.JSON(http.StatusOK, gin.H{"isvalid": true, "logs": []gin.H{}, "totalPages": 0})
+			return
+			return
+		}else{
+		    c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子失败"})
+		    return
+		}
 	}
 	defer rows.Close()
 	logs := []gin.H{}
@@ -95,6 +101,7 @@ func GetPersonalPostLogs(c *gin.Context) {
 			return
 		}
 		var err_url error
+		fmt.Printf(log.Uimage)
 		err_url, log.Uimage = scripts.GetUrl(log.Uimage)
 		if err_url != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "获取头像Url失败"})
@@ -192,7 +199,7 @@ func GetPersonalLikePosts(c *gin.Context) {
 
 	//查看页数是否无效
 	pageint, err := strconv.Atoi(page)
-	if err != nil || pageint < 0 {
+	if err != nil || pageint < 1 {
 		c.JSON(http.StatusBadRequest, gin.H{"isvalid": false, "failreason": "无效的页数"})
 		return
 	}
@@ -223,8 +230,13 @@ func GetPersonalLikePosts(c *gin.Context) {
 	ORDER BY p.publish_time DESC`
 	rows, err := db.Query(checkLikeQuery, aimuid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子失败"})
-		return
+		if err == sql.ErrNoRows {
+		    c.JSON(http.StatusOK, gin.H{"isvalid": true, "logs": []gin.H{}, "totalPages": 0})
+			return
+		}else{
+		    c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子失败"})
+		    return
+		}
 	}
 	defer rows.Close()
 	logs := []gin.H{}
@@ -346,7 +358,7 @@ func GetPersonalCollectPosts(c *gin.Context) {
 
 	//查看页数是否无效
 	pageint, err := strconv.Atoi(page)
-	if err != nil || pageint < 0 {
+	if err != nil || pageint < 1 {
 		c.JSON(http.StatusBadRequest, gin.H{"isvalid": false, "failreason": "无效的页数"})
 		return
 	}
@@ -377,8 +389,13 @@ func GetPersonalCollectPosts(c *gin.Context) {
 	ORDER BY p.publish_time DESC`
 	rows, err := db.Query(checkCollectQuery, aimuid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子失败"})
-		return
+		if err == sql.ErrNoRows {
+		    c.JSON(http.StatusOK, gin.H{"isvalid": true, "logs": []gin.H{}, "totalPages": 0})
+			return
+		}else{
+		    c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子失败"})
+		    return
+		}
 	}
 	defer rows.Close()
 	logs := []gin.H{}
