@@ -58,17 +58,29 @@ type Advpost struct {
 }
 
 // 推荐逻辑设计
-func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
+func AdvisePost(uid int, page int, isattention string, ordertype string) ([]Advpost, error, int) {
 	db, err_conn := repository.Connect()
 	if err_conn != nil {
 		return nil, err_conn, 0
 	}
 	defer db.Close()
 	var posts []Advpost
+	var orderstr string
+	switch ordertype {
+	case "time":
+		orderstr = "order by posts.publish_time DESC"
+	case "like":
+		orderstr = "order by posts.like_count DESC"
+	case "collect":
+		orderstr = "order by posts.favorite_count DESC"
+	}
 	if isattention == "true" {
 		//获取关注的人的帖子，按喜欢数量排序
-		query := "SELECT posts.friend_see,posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=? order by posts.publish_time DESC"
-		rows, err_query := db.Query(query, uid)
+		query := "SELECT posts.friend_see,posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users,userfollows where posts.user_id=users.user_id AND posts.user_id=userfollows.followed_id AND userfollows.follower_id=?"
+		query = query + " " + orderstr
+		query += " limit ?,10"
+
+		rows, err_query := db.Query(query, uid, page*10)
 		if err_query != nil {
 			fmt.Println(err_query.Error())
 			return posts, err_query, 0
@@ -141,8 +153,10 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 
 	} else {
 		//获取所有的帖子，按喜欢数量排序
-		query := "SELECT posts.friend_see ,posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id order by posts.publish_time DESC"
-		rows, err_query := db.Query(query)
+		query := "SELECT posts.friend_see ,posts.post_id,posts.title,users.Uname,users.user_id,users.avatar,posts.publish_time,posts.post_subject,posts.content,posts.like_count,posts.favorite_count from posts,users where posts.user_id=users.user_id"
+		query = query + " " + orderstr
+		query += " limit ?,10"
+		rows, err_query := db.Query(query, page*10)
 		if err_query != nil {
 			fmt.Println(err_query.Error())
 			return posts, err_query, 0
@@ -216,17 +230,19 @@ func AdvisePost(uid int, page int, isattention string) ([]Advpost, error, int) {
 			posts = append(posts, post)
 		}
 	}
-	var realPost []Advpost
-	for i := 0; i < len(posts); i++ {
-		if i >= (page-1)*10 && i < page*10 {
-			realPost = append(realPost, posts[i])
-		}
+	query := "SELECT count(*) from posts"
+	row := db.QueryRow(query)
+	var totalpage int
+	err_scan := row.Scan(&totalpage)
+	if err_scan != nil {
+		return posts, err_scan, 0
 	}
-	totalpage := len(posts) / 10
-	if len(posts)%10 != 0 {
+	totalpage = totalpage / 10
+	if totalpage%10 != 0 {
 		totalpage++
 	}
-	return realPost, nil, totalpage
+
+	return posts, nil, totalpage
 }
 
 // 发帖子接口
@@ -258,16 +274,17 @@ func PublishPost(c *gin.Context) {
 func GetRecommendPost(c *gin.Context) {
 	var pagestr string = c.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pagestr)
-
+	page -= 1
 	var isattention string = c.DefaultQuery("isattion", "false")
 	var uidstr = c.DefaultQuery("uid", "-1")
+	var ordertype = c.DefaultQuery("ordertype", "time")
 	uid, err_uid := strconv.Atoi(uidstr)
 	var posts []Advpost
 	if err_uid != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"logs": posts, "totalPages": -1})
 		return
 	}
-	posts, err_adv, num := AdvisePost(uid, page, isattention)
+	posts, err_adv, num := AdvisePost(uid, page, isattention, ordertype)
 
 	fmt.Println(posts)
 	if err_adv != nil {
