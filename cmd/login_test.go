@@ -65,6 +65,4 @@ func TestLogin(t*testing.T) {
 	    t.Fatalf("格式化JSON错误,err:%v",err)
 	}
 	t.Log(formatterBody.String())
-    
-    
 }

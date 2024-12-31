@@ -445,7 +445,7 @@ func MakeSysinfo(Htype string, rtype string, id int, day int) (bool, string) {
 	}
 	var info string
 	currentTime := time.Now()
-	chinaTime := currentTime.Add(8 * time.Hour)
+	chinaTime := currentTime
 	if Htype == "封禁" {
 		start := chinaTime
 		end := start.Add(time.Duration(day) * 24 * time.Hour)
@@ -832,7 +832,7 @@ func AdmBan(c *gin.Context) {
 	//插入封禁表
 	query = "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
 	currentTime := time.Now()
-	chinaTime := currentTime.Add(8 * time.Hour)
+	chinaTime := currentTime
 	start := chinaTime
 	end := start.Add(time.Duration(day) * 24 * time.Hour)
 	var startstr string
@@ -1142,7 +1142,7 @@ func AdmOnlyBan(c *gin.Context) {
 	if typestr == "ban" {
 		query := "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
 		currentTime := time.Now()
-		chinaTime := currentTime.Add(8 * time.Hour)
+		chinaTime := currentTime
 		start := chinaTime
 		end := start.Add(time.Duration(day) * 24 * time.Hour)
 		var startstr string
@@ -1168,7 +1168,7 @@ func AdmOnlyBan(c *gin.Context) {
 	} else if typestr == "restrick" {
 		query := "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
 		currentTime := time.Now()
-		chinaTime := currentTime.Add(8 * time.Hour)
+		chinaTime := currentTime
 		start := chinaTime
 		end := start.Add(time.Duration(day) * 24 * time.Hour)
 		var startstr string

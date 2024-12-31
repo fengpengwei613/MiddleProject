@@ -54,7 +54,7 @@ func SendEmail(to string, subject string, body string, model string) string {
 	query := "INSERT INTO verificationcodes values(?,?,?)"
 	//5分钟有效期
 	currentTime := time.Now()
-	chinaTime := currentTime.Add(8 * time.Hour)
+	chinaTime := currentTime
 	newTime := chinaTime.Add(5 * time.Minute)
 
 	_, err = db.Exec(query, to, body, newTime)
