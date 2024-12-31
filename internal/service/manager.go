@@ -525,17 +525,19 @@ func HandleUnmute(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"isok": true, "failreason": ""})
 }
 
-// 解除禁言封禁用户
 func UnmuteUser(tx *sql.Tx, uid string) error {
-	_, err := tx.Exec("DELETE FROM usermutes WHERE user_id = ? AND (type = 0 OR type = 1)", uid)
+	query := `
+		UPDATE usermutes 
+		SET end_time = NOW() 
+		WHERE user_id = ?
+	`
+	_, err := tx.Exec(query, uid)
 	if err != nil {
 		return fmt.Errorf("解除禁言封禁失败：%s", err.Error())
 	}
 
 	return nil
 }
-
-// 增加或减少禁言封禁天数
 func HandleUpdateMuteTime(c *gin.Context) {
 	var req struct {
 		Uid  string `json:"uid"`
@@ -552,6 +554,7 @@ func HandleUpdateMuteTime(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "缺少必要参数"})
 		return
 	}
+
 	db, err := repository.Connect()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
@@ -604,8 +607,37 @@ func HandleUpdateMuteTime(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"isok": true, "failreason": ""})
 }
 
+// 更新禁言封禁时间
 func UpdateMuteTime(tx *sql.Tx, uid string, days int) error {
-	query := `UPDATE usermutes SET end_time = DATE_ADD(end_time, INTERVAL ? DAY) WHERE user_id = ?`
-	_, err := tx.Exec(query, days, uid)
-	return err
+	var endTimeRaw []byte
+	err := tx.QueryRow("SELECT end_time FROM usermutes WHERE user_id = ? AND (type = 0 OR type = 1) AND end_time IS NOT NULL", uid).Scan(&endTimeRaw)
+	if err != nil {
+		return fmt.Errorf("无法获取用户的当前禁言结束时间：%s", err.Error())
+	}
+
+	var currentEndTime time.Time
+	if len(endTimeRaw) > 0 {
+		currentEndTime, err = time.Parse("2006-01-02 15:04:05", string(endTimeRaw)) // 假设数据库中的日期格式是 "yyyy-mm-dd hh:mm:ss"
+		if err != nil {
+			return fmt.Errorf("转换禁言结束时间失败：%s", err.Error())
+		}
+	} else {
+		return fmt.Errorf("禁言结束时间无效")
+	}
+
+	newEndTime := currentEndTime.Add(time.Duration(days) * time.Hour * 24)
+
+	if newEndTime.Before(time.Now()) {
+		_, err = tx.Exec("UPDATE usermutes SET end_time = NOW() WHERE user_id = ? AND (type = 0 OR type = 1) AND end_time IS NOT NULL", uid)
+		if err != nil {
+			return fmt.Errorf("解除禁言失败：%s", err.Error())
+		}
+	} else {
+		_, err = tx.Exec("UPDATE usermutes SET end_time = ? WHERE user_id = ? AND (type = 0 OR type = 1) AND end_time IS NOT NULL", newEndTime, uid)
+		if err != nil {
+			return fmt.Errorf("更新禁言结束时间失败：%s", err.Error())
+		}
+	}
+
+	return nil
 }
