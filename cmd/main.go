@@ -139,6 +139,11 @@ func main() {
 		fmt.Println("收到禁言/封禁请求")
 		service.AdmOnlyBan(c)
 	})
+	//管理员获取封禁信息
+	r.GET("/api/adm/banrestricklist", func(c *gin.Context) {
+		fmt.Println("收到获取封禁信息请求")
+		service.AdmGetBaninfo(c)
+	})
 
 	//获取个人设置接口
 	r.GET("/api/persetting", service.HandleGetPersonalSettings)

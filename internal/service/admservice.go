@@ -837,6 +837,8 @@ func AdmBan(c *gin.Context) {
 	var endstr string
 	startstr = start.Format("2006-01-02 15:04:05")
 	endstr = end.Format("2006-01-02 15:04:05")
+	fmt.Println(startstr)
+	fmt.Println(endstr)
 	real_type := 0
 	if typestr == "禁言" {
 		real_type = 1
@@ -844,6 +846,7 @@ func AdmBan(c *gin.Context) {
 	_, err = db.Exec(query, uid, real_type, startstr, endstr)
 	if err != nil {
 		db.Rollback()
+		fmt.Println(err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "封禁表插入失败"})
 		return
 	}
@@ -1057,16 +1060,25 @@ func AdmWarn(c *gin.Context) {
 
 func AdmOnlyWarn(c *gin.Context) {
 	uidstr := c.DefaultQuery("uid", "-1")
-	content := c.DefaultQuery("content", "err")
+	var content string
+	var data map[string]string
+	err := c.BindJSON(&data)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+	content, ok := data["content"]
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
+		return
+	}
+
 	uid, err_uid := strconv.Atoi(uidstr)
 	if err_uid != nil || uid == -1 {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
 		return
 	}
-	if content == "err" {
-		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的请求数据"})
-		return
-	}
+
 	db_link, err := repository.Connect()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
@@ -1186,4 +1198,81 @@ func AdmOnlyBan(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"isok": true})
 
+}
+
+type Baninfo struct {
+	UID       int    `json:"uid"`
+	Uname     string `json:"uname"`
+	Uimage    string `json:"uimage"`
+	StartTime string `json:"fromtime"`
+	EndTime   string `json:"totime"`
+}
+
+func AdmGetBaninfo(c *gin.Context) {
+	var baninfos []Baninfo
+	pagestr := c.DefaultQuery("page", "-1")
+	typestr := c.DefaultQuery("type", "ban")
+	page, err_page := strconv.Atoi(pagestr)
+	if err_page != nil || page <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"datas": baninfos, "totalpages": 0})
+		return
+	}
+	if typestr != "ban" && typestr != "restrick" {
+		c.JSON(http.StatusBadRequest, gin.H{"datas": baninfos, "totalpages": 0})
+		return
+	}
+	db_link, err := repository.Connect()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"datas": baninfos, "totalpages": 0})
+		return
+	}
+	defer db_link.Close()
+	var realtype int
+	if typestr == "ban" {
+		realtype = 0
+	} else {
+		realtype = 1
+	}
+	query := "SELECT COUNT(*) FROM usermutes WHERE type = ? and now() < end_time"
+	row := db_link.QueryRow(query, realtype)
+	var total int
+	err = row.Scan(&total)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"datas": baninfos, "totalpages": 0})
+		return
+	}
+	totalpages := total / 10
+	if total%10 != 0 {
+		totalpages = totalpages + 1
+	}
+	if totalpages == 0 {
+		c.JSON(http.StatusOK, gin.H{"datas": baninfos, "totalpages": 0})
+		return
+	}
+	page = page - 1
+	query = "select usermutes.user_id, usermutes.start_time,usermutes.end_time,users.Uname,users.avatar from usermutes,users where users.user_id=usermutes.user_id and usermutes.type=? and now()<usermutes.end_time"
+	query = query + " limit ?,10"
+	rows, err := db_link.Query(query, realtype, page*10)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"datas": baninfos, "totalpages": 0})
+		return
+	}
+	for rows.Next() {
+		var baninfo Baninfo
+		err = rows.Scan(&baninfo.UID, &baninfo.StartTime, &baninfo.EndTime, &baninfo.Uname, &baninfo.Uimage)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"datas": baninfos, "totalpages": 0})
+			return
+		}
+		baninfo.StartTime = baninfo.StartTime[:len(baninfo.StartTime)-3]
+		baninfo.EndTime = baninfo.EndTime[:len(baninfo.EndTime)-3]
+		var err error
+		err, baninfo.Uimage = scripts.GetUrl(baninfo.Uimage)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"datas": baninfos, "totalpages": 0})
+			return
+		}
+		baninfos = append(baninfos, baninfo)
+	}
+	c.JSON(http.StatusOK, gin.H{"datas": baninfos, "totalpages": totalpages})
 }

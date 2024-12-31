@@ -38,6 +38,10 @@ func PublishComment(c *gin.Context) {
 	data.CommenterID = uid
 	data.PostID = postid
 	erro, msg, idstr := data.AddComment()
+	if erro == sql.ErrNoRows {
+		c.JSON(http, gin.H{"isok": false, "failreason": msg})
+		return
+	}
 	if erro != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": msg})
 		return
