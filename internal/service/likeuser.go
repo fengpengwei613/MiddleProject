@@ -262,9 +262,19 @@ func ReportComment(tx *sql.Tx, uid, comID, reason string,type1 string,) error {
 	if comID == "" {
 		return fmt.Errorf("评论或回复ID不能为空")
 	}
+	queryself:="SELECT commenter_id FROM comments WHERE comment_id=?"
+	var comment_user_id string
+	err := tx.QueryRow(queryself, comID).Scan(&comment_user_id)
+	if err != nil {
+		return fmt.Errorf("查询是否是本人失败")
+	}
+	if comment_user_id==uid{
+		return fmt.Errorf("不能举报自己")
+	}
+
 
 	query := "INSERT INTO CommentReports (reporter_id,comment_id,reason,report_time,rpttype) VALUES (?,?,?,?,?)"
-	_, err := tx.Exec(query, uid, comID, reason, time.Now(),type1)
+	_, err = tx.Exec(query, uid, comID, reason, time.Now(),type1)
 	if err != nil {
 		return fmt.Errorf("sql语句插入失败")
 	}
@@ -276,8 +286,19 @@ func ReportPost(tx *sql.Tx, uid, postID, reason string,type1 string) error {
 	if postID == "" {
 		return fmt.Errorf("帖子ID不能为空")
 	}
+	queryself:="SELECT user_id FROM Posts WHERE post_id=?"
+	var post_user_id string
+	err := tx.QueryRow(queryself, postID).Scan(&post_user_id)
+	if err != nil {
+		fmt.Print(err)
+		return fmt.Errorf("查询是否是本人失败")
+	}
+	if post_user_id==uid{
+		return fmt.Errorf("不能举报自己")
+	}
+
 	query := "INSERT INTO PostReports (reporter_id,post_id,reason,report_time,rpttype) VALUES (?,?,?,?,?)"
-	_, err := tx.Exec(query, uid, postID, reason, time.Now(),type1)
+	_, err = tx.Exec(query, uid, postID, reason, time.Now(),type1)
 	if err != nil {
 		fmt.Print(err)
 		return fmt.Errorf("sql插入举报帖子失败")
