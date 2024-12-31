@@ -1,13 +1,14 @@
 package service
 
 import (
+	"database/sql"
 	"fmt"
 	"middleproject/internal/model"
 	"middleproject/internal/repository"
 	"middleproject/scripts"
 	"net/http"
 	"strconv"
-    "database/sql"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -151,7 +152,7 @@ func GetCommentReply(page_num int, requester_uid int, comid int) ([]CommentReply
 	//查询评论的回复
 	querystr := "SELECT com1.comment_id,com1.commenter_id,com1.content,com1.comment_time,com1.like_count,u1.Uname AS commenter_name_1,u1.avatar AS commenter_avatar_1, u2.Uname AS commenter_name_2,u2.user_id AS commenter_id_2 FROM comments com1 JOIN comments com2 ON com2.comment_id = com1.parent_comment_id JOIN users u1 ON com1.commenter_id = u1.user_id JOIN users u2 ON com2.commenter_id = u2.user_id WHERE com1.top_parentid = ?"
 	querystr += " ORDER BY com1.comment_time DESC LIMIT ?, 5"
-	rows, err := db.Query(querystr, comid, page_num*5)
+	rows, err := db.Query(querystr, comid, page_num)
 	if err != nil {
 		fmt.Println(err.Error())
 		return replys, err
@@ -206,7 +207,7 @@ func GetMoreReply(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{})
 		return
 	}
-	nowreply = nowreply - 1
+
 	replys, err := GetCommentReply(nowreply, uid, commentid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"replies": replys})
