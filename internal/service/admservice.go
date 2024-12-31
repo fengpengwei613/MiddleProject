@@ -115,7 +115,8 @@ func GetallUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"datas": users, "totalPages": 0})
 		return
 	}
-	totalPages := total / 10
+	var totalPages int
+	totalPages = total / 10
 	if total%10 != 0 {
 		totalPages++
 	}
@@ -195,7 +196,8 @@ func GetallPost(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"logs": posts, "totalPages": 0})
 		return
 	}
-	totalPages := total / 10
+	var totalPages int
+	totalPages = total / 10
 	if total%10 != 0 {
 		totalPages++
 	}
