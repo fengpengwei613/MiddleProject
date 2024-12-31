@@ -10,6 +10,7 @@ import (
 	"time"
     "strings"
 	"github.com/gin-gonic/gin"
+	"math"
 )
 
 // 获取举报目标的接口
@@ -381,7 +382,7 @@ func GetReportInfo(c *gin.Context) {
 type UserMuteStatus struct {
 	Status   string `json:"status"`
 	Lifttime string `json:"lifttime"`
-	Days     int    `json:"days"`
+	Days     float64    `json:"days"`
 }
 
 // 获取用户状态
@@ -431,7 +432,7 @@ func GetUserStatus(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid end_time"})
 		return
 	}
-	days := int(endTime.Sub(startTime).Hours() / 24)
+	days := math.Round(endTime.Sub(startTime).Hours()/24*10) / 10
 	fmt.Println(days)
 	var status string
 	var lifttime string

@@ -7,7 +7,7 @@ import (
 	"middleproject/scripts"
 	"net/http"
 	"strconv"
-
+    "database/sql"
 	"github.com/gin-gonic/gin"
 )
 
@@ -39,7 +39,7 @@ func PublishComment(c *gin.Context) {
 	data.PostID = postid
 	erro, msg, idstr := data.AddComment()
 	if erro == sql.ErrNoRows {
-		c.JSON(http, gin.H{"isok": false, "failreason": msg})
+		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": msg})
 		return
 	}
 	if erro != nil {
