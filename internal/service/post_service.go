@@ -1015,6 +1015,7 @@ func SearchPost(c *gin.Context) {
 	}
 	fmt.Println(posts)
 	fmt.Println(num)
+	
 	c.JSON(http.StatusOK, gin.H{"logs": posts, "totalPages": num})
 
 }
