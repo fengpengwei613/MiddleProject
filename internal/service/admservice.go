@@ -829,6 +829,7 @@ func AdmBan(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "系统消息存储失败"})
 		return
 	}
+
 	//插入封禁表
 	query = "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
 	currentTime := time.Now()
