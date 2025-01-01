@@ -838,45 +838,41 @@ func AdmBan(c *gin.Context) {
 	if typestr == "禁言" {
 		real_type = 1
 	}
-	// //查询用户是否已经被封禁/禁言
-	// query = "SELECT user_id FROM usermutes WHERE user_id = ? AND type = ? and end_time > now()"
-	// row := db.QueryRow(query, uid, real_type)
-	// var temp int
-	// err = row.Scan(&temp)
-	// if err == nil {
-	// 	//查询封禁结束时间
-	// 	query = "SELECT end_time FROM usermutes WHERE user_id = ? AND type = ? and end_time > now()"
-	// 	row := db.QueryRow(query, uid, real_type)
-	// 	var end_time string
-	// 	err = row.Scan(&end_time)
-	// 	if err != nil {
-	// 		db.Rollback()
-	// 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询封禁结束时间失败"})
-	// 		return
-	// 	}
-	// 	//更新封禁结束时间
+	//查询用户是否已经被封禁/禁言
+	query = "SELECT user_id FROM usermutes WHERE user_id = ? AND type = ? and end_time > now()"
+	row := db.QueryRow(query, uid, real_type)
+	var temp int
+	err = row.Scan(&temp)
+	if err == nil {
+		//更新封禁结束时间
+		query = "UPDATE usermutes SET end_time = end_time + interval ? day WHERE user_id = ? AND type = ?"
+		_, err = db.Exec(query, day, uid, real_type)
+		if err != nil {
+			db.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "封禁表更新失败"})
+			return
+		}
 
-	// }
+	} else {
 
-	//插入封禁表
-	query = "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
-	currentTime := time.Now()
-	chinaTime := currentTime
-	start := chinaTime
-	end := start.Add(time.Duration(day) * 24 * time.Hour)
-	var startstr string
-	var endstr string
-	startstr = start.Format("2006-01-02 15:04:05")
-	endstr = end.Format("2006-01-02 15:04:05")
-	fmt.Println(startstr)
-	fmt.Println(endstr)
+		//插入封禁表
+		query = "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
+		currentTime := time.Now()
+		chinaTime := currentTime
+		start := chinaTime
+		end := start.Add(time.Duration(day) * 24 * time.Hour)
+		var startstr string
+		var endstr string
+		startstr = start.Format("2006-01-02 15:04:05")
+		endstr = end.Format("2006-01-02 15:04:05")
 
-	_, err = db.Exec(query, uid, real_type, startstr, endstr)
-	if err != nil {
-		db.Rollback()
-		fmt.Println(err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "封禁表插入失败"})
-		return
+		_, err = db.Exec(query, uid, real_type, startstr, endstr)
+		if err != nil {
+			db.Rollback()
+			fmt.Println(err.Error())
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "封禁表插入失败"})
+			return
+		}
 	}
 	if rtypestr == "log" {
 		query = "DELETE FROM posts WHERE post_id = ?"
@@ -1166,21 +1162,38 @@ func AdmOnlyBan(c *gin.Context) {
 		return
 	}
 	if typestr == "ban" {
-		query := "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
-		currentTime := time.Now()
-		chinaTime := currentTime
-		start := chinaTime
-		end := start.Add(time.Duration(day) * 24 * time.Hour)
 		var startstr string
 		var endstr string
-		startstr = start.Format("2006-01-02 15:04:05")
-		endstr = end.Format("2006-01-02 15:04:05")
-		real_type := 0
+		//查询用户是否已经被封禁
+		query := "SELECT user_id FROM usermutes WHERE user_id = ? AND type = 0 and end_time > now()"
+		row := db.QueryRow(query, uid)
+		var temp int
+		err := row.Scan(&temp)
+		if err == nil {
+			//更新封禁结束时间
+			query = "UPDATE usermutes SET end_time = end_time + interval ? day WHERE user_id = ? AND type = 0"
+			_, err = db.Exec(query, day, uid)
+			if err != nil {
+				db.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "封禁表更新失败"})
+				return
+			}
+		} else {
+			query := "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
+			currentTime := time.Now()
+			chinaTime := currentTime
+			start := chinaTime
+			end := start.Add(time.Duration(day) * 24 * time.Hour)
 
-		_, err = db.Exec(query, uid, real_type, startstr, endstr)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "封禁表插入失败"})
-			return
+			startstr = start.Format("2006-01-02 15:04:05")
+			endstr = end.Format("2006-01-02 15:04:05")
+			real_type := 0
+
+			_, err = db.Exec(query, uid, real_type, startstr, endstr)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "封禁表插入失败"})
+				return
+			}
 		}
 		//插入系统消息
 		info := "您的账户已被暂时封禁(" + startstr + "-" + endstr + ")。请您在未来遵守社区行为准则。"
@@ -1192,20 +1205,37 @@ func AdmOnlyBan(c *gin.Context) {
 			return
 		}
 	} else if typestr == "restrick" {
-		query := "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
-		currentTime := time.Now()
-		chinaTime := currentTime
-		start := chinaTime
-		end := start.Add(time.Duration(day) * 24 * time.Hour)
 		var startstr string
 		var endstr string
-		startstr = start.Format("2006-01-02 15:04:05")
-		endstr = end.Format("2006-01-02 15:04:05")
-		real_type := 1
-		_, err = db.Exec(query, uid, real_type, startstr, endstr)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "封禁表插入失败"})
-			return
+		//查询用户是否已经被封禁/禁言
+		query := "SELECT user_id FROM usermutes WHERE user_id = ? AND type = ? and end_time > now()"
+		row := db.QueryRow(query, uid, 1)
+		var temp int
+		err = row.Scan(&temp)
+		if err == nil {
+			//更新封禁结束时间
+			query = "UPDATE usermutes SET end_time = end_time + interval ? day WHERE user_id = ? AND type = ?"
+			_, err = db.Exec(query, day, uid, 1)
+			if err != nil {
+				db.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "封禁表更新失败"})
+				return
+			}
+		} else {
+			query := "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
+			currentTime := time.Now()
+			chinaTime := currentTime
+			start := chinaTime
+			end := start.Add(time.Duration(day) * 24 * time.Hour)
+
+			startstr = start.Format("2006-01-02 15:04:05")
+			endstr = end.Format("2006-01-02 15:04:05")
+			real_type := 1
+			_, err = db.Exec(query, uid, real_type, startstr, endstr)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "封禁表插入失败"})
+				return
+			}
 		}
 		//插入系统消息
 		info := "您的账户已被暂时禁言(" + startstr + "-" + endstr + ")。请您在未来遵守社区行为准则。"

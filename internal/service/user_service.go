@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"middleproject/internal/middleware"
 	"middleproject/internal/model"
 	"middleproject/internal/repository"
 	"net/http"
@@ -164,8 +165,14 @@ func Login(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"isok": false, "failreason": Avatar})
 	}
-	
-	c.JSON(http.StatusOK, gin.H{"isok": true, "uid": userID, "uname": userName, "uimage": Avatar})
+	jwtToken, err := middleware.GenerateToken(userID, "user")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "生成 token 失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"isok": true, "uid": userID, "uname": userName, "uimage": Avatar, "token": jwtToken})
+
+	//c.JSON(http.StatusOK, gin.H{"isok": true, "uid": userID, "uname": userName, "uimage": Avatar})
 }
 
 // 获取个人设置函数

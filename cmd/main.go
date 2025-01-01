@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"middleproject/internal/service"
 
+	_ "middleproject/internal/middleware"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -35,10 +37,12 @@ func main() {
 		fmt.Println("收到回复请求")
 		service.PublishReply(c)
 	})
+	//获取推荐帖子（引入身份验证）
 	r.GET("/api/logs", func(c *gin.Context) {
-		fmt.Println("收到获取帖子请求")
+		fmt.Println("收到获取推荐帖子请求")
 		service.GetRecommendPost(c)
 	})
+
 	//获取帖子详情
 	r.GET("/api/logs/alog", func(c *gin.Context) {
 		fmt.Println("收到获取帖子详情请求")
