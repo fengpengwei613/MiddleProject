@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"middleproject/internal/middleware"
 	"middleproject/internal/model"
 	"middleproject/internal/repository"
 	"net/http"
@@ -65,7 +66,8 @@ func AdmLogin(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"isok": false, "failreason": Avatar})
 	}
-	c.JSON(http.StatusOK, gin.H{"isok": true, "uid": userID, "uname": userName, "uimage": Avatar})
+	token, err := middleware.GenerateToken(userID, "admin")
+	c.JSON(http.StatusOK, gin.H{"isok": true, "uid": userID, "uname": userName, "uimage": Avatar, "token": token})
 }
 
 type Userinfo struct {

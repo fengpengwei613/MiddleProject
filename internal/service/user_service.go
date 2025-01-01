@@ -60,7 +60,12 @@ func Register(c *gin.Context) {
 		c.JSON(400, gin.H{"isok": false, "failreason": url})
 		return
 	}
-	c.JSON(200, gin.H{"isok": true, "uid": userid, "uimage": url})
+	token, err := middleware.GenerateToken(userid, "user")
+	if err != nil {
+		c.JSON(500, gin.H{"isok": false, "failreason": "生成 token 失败"})
+		return
+	}
+	c.JSON(200, gin.H{"isok": true, "uid": userid, "uimage": url, "token": token})
 }
 
 func SendMailInterface(c *gin.Context) {
@@ -374,11 +379,11 @@ func updatePassword(db *sql.DB, mail string, newPassword string) (error, model.U
 }
 
 // 获取个人信息函数
-func GetPersonalInfo(db *sql.DB, uid string, requestid string) (*model.PersonalInfo, error) {
+func GetPersonalInfo(db *sql.DB, uid string, requestid string, tokenstring string) (*model.PersonalInfo, error) {
 	query := `
 	SELECT signature, user_id, Uname, avatar, phone, email, address, birthday, registration_date, 
 		   sex, introduction, school, major, edutime, eduleval, companyname, positionname, 
-		   industry, interests, likenum, attionnum, fansnum
+		   industry, interests, likenum, attionnum, fansnum,showphone,showmail
 	FROM users WHERE user_id = ?`
 
 	info := &model.PersonalInfo{}
@@ -403,13 +408,14 @@ func GetPersonalInfo(db *sql.DB, uid string, requestid string) (*model.PersonalI
 		likenumNull      sql.NullInt64
 		attionumNull     sql.NullInt64
 		fansnumNull      sql.NullInt64
+		showphoneNull    sql.NullInt64
+		showmailNull     sql.NullInt64
 	)
 
 	err := db.QueryRow(query, uid).Scan(&signatureNULL,
 		&info.UserID, &info.UserName, &avatarNull, &phoneNull, &emailNull, &addressNull, &birthdayNull, &registrationDate,
 		&sexNull, &introductionNull, &schoolNull, &majorNull, &edutimeNull, &edulevelNull, &companyNull, &positionNull,
-		&industryNull, &interestsNull, &likenumNull, &attionumNull, &fansnumNull,
-	)
+		&industryNull, &interestsNull, &likenumNull, &attionumNull, &fansnumNull, &showphoneNull, &showmailNull)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("用户不存在")
@@ -435,12 +441,44 @@ func GetPersonalInfo(db *sql.DB, uid string, requestid string) (*model.PersonalI
 	} else {
 		info.UImage = ""
 	}
+	var showphone bool
+	var showmail bool
+	if showphoneNull.Valid {
+		if showphoneNull.Int64 == 1 {
+			showphone = true
+		} else {
+			showphone = false
+		}
+	}
+	if showmailNull.Valid {
+		if showmailNull.Int64 == 1 {
+			showmail = true
+		} else {
+			showmail = false
+		}
+	}
+	_, err_token := middleware.ParseToken(tokenstring)
 
-	if requestid != uid {
-		info.Phone = "已隐藏"
-		info.Mail = "已隐藏"
+	if showmail == false {
+		if err_token != nil {
+			info.Phone = "已隐藏"
+		} else if requestid != uid {
+			info.Phone = "已隐藏"
+		} else {
+			info.Phone = phoneNull.String
+		}
 	} else {
 		info.Phone = phoneNull.String
+	}
+	if showphone == false {
+		if err_token != nil {
+			info.Mail = "已隐藏"
+		} else if requestid != uid {
+			info.Mail = "已隐藏"
+		} else {
+			info.Mail = emailNull.String
+		}
+	} else {
 		info.Mail = emailNull.String
 	}
 
@@ -491,6 +529,11 @@ func HandleGetPersonalInfo(c *gin.Context) {
 		return
 	}
 	defer db.Close()
+	// 从请求头中获取 Authorization
+	tokenString := c.GetHeader("Authorization")
+
+	// 去掉 "Bearer " 前缀
+	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
 
 	uid := c.Query("uid")
 	requestid := c.Query("requesteruid")
@@ -499,7 +542,7 @@ func HandleGetPersonalInfo(c *gin.Context) {
 		return
 	}
 
-	personalInfo, err := GetPersonalInfo(db, uid, requestid)
+	personalInfo, err := GetPersonalInfo(db, uid, requestid, tokenString)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

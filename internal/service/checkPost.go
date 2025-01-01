@@ -1,18 +1,20 @@
 package service
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"middleproject/internal/repository"
 	"middleproject/scripts"
 	"net/http"
 	"strconv"
-    "database/sql"
+
 	"github.com/gin-gonic/gin"
 )
 
 // 查看个人发布的帖子
 func GetPersonalPostLogs(c *gin.Context) {
+	fmt.Println("查看个人发布的贴子")
 	db, err := repository.Connect()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "数据库连接失败"})
@@ -82,14 +84,14 @@ func GetPersonalPostLogs(c *gin.Context) {
 	)
 	ORDER BY publish_time DESC
 	LIMIT ?, ?`
-	rows, err := db.Query(query, aimuid, uid, uid,aimuid, startnumber, pagesize)
+	rows, err := db.Query(query, aimuid, uid, uid, aimuid, startnumber, pagesize)
 	if err != nil {
 		if err == sql.ErrNoRows {
-		    c.JSON(http.StatusOK, gin.H{"isvalid": true, "logs": []gin.H{}, "totalPages": 0})
+			c.JSON(http.StatusOK, gin.H{"isvalid": true, "logs": []gin.H{}, "totalPages": 0})
 			return
-		}else{
-		    c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子失败"})
-		    return
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子失败"})
+			return
 		}
 	}
 	defer rows.Close()
@@ -151,12 +153,12 @@ func GetPersonalPostLogs(c *gin.Context) {
 		(p.friend_see = TRUE AND f1.follower_id IS NOT NULL AND f2.follower_id IS NOT NULL)
 	)`
 	var countPosts int
-	if err := db.QueryRow(countPostsQuery, uid,uid,aimuid).Scan(&countPosts); err != nil {
+	if err := db.QueryRow(countPostsQuery, uid, uid, aimuid).Scan(&countPosts); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询帖子总数失败"})
 		return
 	}
 
-	totalPages := (countPosts - 1) / pagesize + 1
+	totalPages := (countPosts-1)/pagesize + 1
 	c.JSON(http.StatusOK, gin.H{"isok": true, "logs": logs, "totalPages": totalPages})
 
 }
@@ -246,14 +248,14 @@ func GetPersonalLikePosts(c *gin.Context) {
 		)
 		ORDER BY publish_time DESC
 		LIMIT ?, ?`
-	rows, err := db.Query(query, aimuid,uid,uid,aimuid, startnumber, pagesize)
+	rows, err := db.Query(query, aimuid, uid, uid, aimuid, startnumber, pagesize)
 	if err != nil {
 		if err == sql.ErrNoRows {
-		    c.JSON(http.StatusOK, gin.H{"isvalid": true, "logs": []gin.H{}, "totalPages": 0})
+			c.JSON(http.StatusOK, gin.H{"isvalid": true, "logs": []gin.H{}, "totalPages": 0})
 			return
-		}else{
-		    c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子失败"})
-		    return
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子失败"})
+			return
 		}
 	}
 	defer rows.Close()
@@ -302,7 +304,6 @@ func GetPersonalLikePosts(c *gin.Context) {
 		})
 	}
 
-
 	countPostsQuery := `SELECT COUNT(*)
 	FROM Postlikes pl
 	JOIN Posts p ON pl.post_id = p.post_id
@@ -315,7 +316,7 @@ func GetPersonalLikePosts(c *gin.Context) {
 		(p.friend_see = TRUE AND f1.follower_id IS NOT NULL AND f2.follower_id IS NOT NULL)
 	)`
 	var countPosts int
-	if err := db.QueryRow(countPostsQuery,uid,uid,aimuid).Scan(&countPosts); err != nil {
+	if err := db.QueryRow(countPostsQuery, uid, uid, aimuid).Scan(&countPosts); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子总数失败"})
 	}
 	tatalpages := (countPosts-1)/pagesize + 1
@@ -400,14 +401,14 @@ func GetPersonalCollectPosts(c *gin.Context) {
    )
 	ORDER BY publish_time DESC
 	LIMIT ?, ?`
-	rows, err := db.Query(checkCollectQuery, aimuid,uid,uid,aimuid, startnumber, pagesize)
+	rows, err := db.Query(checkCollectQuery, aimuid, uid, uid, aimuid, startnumber, pagesize)
 	if err != nil {
 		if err == sql.ErrNoRows {
-		    c.JSON(http.StatusOK, gin.H{"isvalid": true, "logs": []gin.H{}, "totalPages": 0})
+			c.JSON(http.StatusOK, gin.H{"isvalid": true, "logs": []gin.H{}, "totalPages": 0})
 			return
-		}else{
-		    c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子失败"})
-		    return
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子失败"})
+			return
 		}
 	}
 	defer rows.Close()
@@ -436,7 +437,6 @@ func GetPersonalCollectPosts(c *gin.Context) {
 			return
 		}
 
-
 		var sujects []string
 		if subjectsJSON != "" {
 			if err := json.Unmarshal([]byte(subjectsJSON), &sujects); err != nil {
@@ -456,9 +456,7 @@ func GetPersonalCollectPosts(c *gin.Context) {
 			"subjects":    log.Subjects,
 		})
 	}
-		
 
-	
 	countPostsQuery := `SELECT COUNT(*)
 	FROM Postfavorites pf
 	JOIN Posts p ON pf.post_id = p.post_id
@@ -471,7 +469,7 @@ func GetPersonalCollectPosts(c *gin.Context) {
 		(p.friend_see = TRUE AND f1.follower_id IS NOT NULL AND f2.follower_id IS NOT NULL)
 	)`
 	var countPosts int
-	if err := db.QueryRow(countPostsQuery, uid,uid,aimuid).Scan(&countPosts); err != nil {
+	if err := db.QueryRow(countPostsQuery, uid, uid, aimuid).Scan(&countPosts); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询帖子总数失败"})
 	}
 	tatalpages := (countPosts-1)/pagesize + 1
