@@ -164,14 +164,16 @@ func GetallPost(c *gin.Context) {
 		}
 		if subjects.Valid {
 			str := subjects.String
-			post.Subjects = strings.Split(str[1:len(str)-1], ",")
-			//去除双引号
-			for i := 0; i < len(post.Subjects); i++ {
-				if i == 0 {
-					post.Subjects[i] = "#" + post.Subjects[i][1:len(post.Subjects[i])-1]
+			if str != "[]" {
+				post.Subjects = strings.Split(str[1:len(str)-1], ",")
+				//去除双引号
+				for i := 0; i < len(post.Subjects); i++ {
+					if i == 0 {
+						post.Subjects[i] = "#" + post.Subjects[i][1:len(post.Subjects[i])-1]
 
-				} else {
-					post.Subjects[i] = "#" + post.Subjects[i][2:len(post.Subjects[i])-1]
+					} else {
+						post.Subjects[i] = "#" + post.Subjects[i][2:len(post.Subjects[i])-1]
+					}
 				}
 			}
 
@@ -339,13 +341,15 @@ func AdmSearchPost(c *gin.Context) {
 			}
 			if subjects.Valid {
 				str := subjects.String
-				post.Subjects = strings.Split(str[1:len(str)-1], ",")
-				//去除双引号
-				for i := 0; i < len(post.Subjects); i++ {
-					if i == 0 {
-						post.Subjects[i] = "#" + post.Subjects[i][1:len(post.Subjects[i])-1]
-					} else {
-						post.Subjects[i] = "#" + post.Subjects[i][2:len(post.Subjects[i])-1]
+				if str != "[]" {
+					post.Subjects = strings.Split(str[1:len(str)-1], ",")
+					//去除双引号
+					for i := 0; i < len(post.Subjects); i++ {
+						if i == 0 {
+							post.Subjects[i] = "#" + post.Subjects[i][1:len(post.Subjects[i])-1]
+						} else {
+							post.Subjects[i] = "#" + post.Subjects[i][2:len(post.Subjects[i])-1]
+						}
 					}
 				}
 			}
@@ -830,6 +834,30 @@ func AdmBan(c *gin.Context) {
 		return
 	}
 
+	real_type := 0
+	if typestr == "禁言" {
+		real_type = 1
+	}
+	// //查询用户是否已经被封禁/禁言
+	// query = "SELECT user_id FROM usermutes WHERE user_id = ? AND type = ? and end_time > now()"
+	// row := db.QueryRow(query, uid, real_type)
+	// var temp int
+	// err = row.Scan(&temp)
+	// if err == nil {
+	// 	//查询封禁结束时间
+	// 	query = "SELECT end_time FROM usermutes WHERE user_id = ? AND type = ? and end_time > now()"
+	// 	row := db.QueryRow(query, uid, real_type)
+	// 	var end_time string
+	// 	err = row.Scan(&end_time)
+	// 	if err != nil {
+	// 		db.Rollback()
+	// 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "查询封禁结束时间失败"})
+	// 		return
+	// 	}
+	// 	//更新封禁结束时间
+
+	// }
+
 	//插入封禁表
 	query = "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
 	currentTime := time.Now()
@@ -842,10 +870,7 @@ func AdmBan(c *gin.Context) {
 	endstr = end.Format("2006-01-02 15:04:05")
 	fmt.Println(startstr)
 	fmt.Println(endstr)
-	real_type := 0
-	if typestr == "禁言" {
-		real_type = 1
-	}
+
 	_, err = db.Exec(query, uid, real_type, startstr, endstr)
 	if err != nil {
 		db.Rollback()

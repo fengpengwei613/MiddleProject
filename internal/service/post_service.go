@@ -92,19 +92,18 @@ func AdvisePost(uid int, page int, isattention string, ordertype string) ([]Advp
 			}
 			if subject.Valid {
 				str := subject.String
-				post.Subject = strings.Split(str[1:len(str)-1], ",")
-				//去除双引号
-				for i := 0; i < len(post.Subject); i++ {
-					if i == 0 {
-						post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
-					} else {
-						post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+				if str != "[]" {
+					post.Subject = strings.Split(str[1:len(str)-1], ",")
+					//去除双引号
+					for i := 0; i < len(post.Subject); i++ {
+						if i == 0 {
+							post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+						} else {
+							post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+						}
 					}
 				}
 
-			} else {
-
-				post.Subject = []string{"无关键字"}
 			}
 			//判断是否喜欢
 			query = "select liker_id from postlikes where liker_id=? and post_id=?"
@@ -203,13 +202,15 @@ func AdvisePost(uid int, page int, isattention string, ordertype string) ([]Advp
 			}
 			if subject.Valid {
 				str := subject.String
-				post.Subject = strings.Split(str[1:len(str)-1], ",")
-				//去除双引号
-				for i := 0; i < len(post.Subject); i++ {
-					if i == 0 {
-						post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
-					} else {
-						post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+				if str != "[]" {
+					post.Subject = strings.Split(str[1:len(str)-1], ",")
+					//去除双引号
+					for i := 0; i < len(post.Subject); i++ {
+						if i == 0 {
+							post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+						} else {
+							post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+						}
 					}
 				}
 			} else {
@@ -448,15 +449,20 @@ func GetPostInfo(c *gin.Context) {
 	post.UID = strconv.Itoa(uid)
 	if subject.Valid {
 		str := subject.String
-		post.Subjects = strings.Split(str[1:len(str)-1], ",")
-		//去除双引号
-		for i := 0; i < len(post.Subjects); i++ {
-			if i == 0 {
-				post.Subjects[i] = post.Subjects[i][1 : len(post.Subjects[i])-1]
-			} else {
-				post.Subjects[i] = post.Subjects[i][2 : len(post.Subjects[i])-1]
+		if str == "[]" {
+
+		} else {
+			post.Subjects = strings.Split(str[1:len(str)-1], ",")
+			//去除双引号
+			for i := 0; i < len(post.Subjects); i++ {
+				if i == 0 {
+					post.Subjects[i] = post.Subjects[i][1 : len(post.Subjects[i])-1]
+				} else {
+					post.Subjects[i] = post.Subjects[i][2 : len(post.Subjects[i])-1]
+				}
 			}
 		}
+
 	}
 	if images.Valid {
 		str := images.String
@@ -699,13 +705,15 @@ func searchStrategy(page int, uid int, key string, ordertype string) ([]Advpost,
 		}
 		if subject.Valid {
 			str := subject.String
-			post.Subject = strings.Split(str[1:len(str)-1], ",")
-			//去除双引号
-			for i := 0; i < len(post.Subject); i++ {
-				if i == 0 {
-					post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
-				} else {
-					post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+			if str != "[]" {
+				post.Subject = strings.Split(str[1:len(str)-1], ",")
+				//去除双引号
+				for i := 0; i < len(post.Subject); i++ {
+					if i == 0 {
+						post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+					} else {
+						post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+					}
 				}
 			}
 		}
@@ -815,13 +823,15 @@ func search_isattion(page int, uid int, key string, ordertype string) ([]Advpost
 		}
 		if subject.Valid {
 			str := subject.String
-			post.Subject = strings.Split(str[1:len(str)-1], ",")
-			//去除双引号
-			for i := 0; i < len(post.Subject); i++ {
-				if i == 0 {
-					post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
-				} else {
-					post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+			if str != "[]" {
+				post.Subject = strings.Split(str[1:len(str)-1], ",")
+				//去除双引号
+				for i := 0; i < len(post.Subject); i++ {
+					if i == 0 {
+						post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+					} else {
+						post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+					}
 				}
 			}
 		}
@@ -932,18 +942,17 @@ func search_aimuid(page int, uid int, key string, aimuid int, ordertype string) 
 		}
 		if subject.Valid {
 			str := subject.String
-			post.Subject = strings.Split(str[1:len(str)-1], ",")
-			//去除双引号
-			for i := 0; i < len(post.Subject); i++ {
-				if i == 0 {
-					post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
-				} else {
-					post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+			if str != "[]" {
+				post.Subject = strings.Split(str[1:len(str)-1], ",")
+				//去除双引号
+				for i := 0; i < len(post.Subject); i++ {
+					if i == 0 {
+						post.Subject[i] = post.Subject[i][1 : len(post.Subject[i])-1]
+					} else {
+						post.Subject[i] = post.Subject[i][2 : len(post.Subject[i])-1]
+					}
 				}
 			}
-		} else {
-			post.Subject = []string{"无关键字"}
-
 		}
 		//判断是否喜欢
 		query = "select liker_id from postlikes where liker_id=? and post_id=?"
@@ -1015,7 +1024,7 @@ func SearchPost(c *gin.Context) {
 	}
 	fmt.Println(posts)
 	fmt.Println(num)
-	
+
 	c.JSON(http.StatusOK, gin.H{"logs": posts, "totalPages": num})
 
 }
