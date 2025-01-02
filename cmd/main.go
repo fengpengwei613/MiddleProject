@@ -167,7 +167,7 @@ func main() {
 	r.POST("/api/forget", service.ForgotPassword)
 
 	//获取个人信息
-	r.GET("/api/perinfo", middleware.JWTAuthMiddleware(), service.HandleGetPersonalInfo)
+	r.GET("/api/perinfo", service.HandleGetPersonalInfo)
 	//修改个人信息
 	r.POST("/api/perinfo/edit", middleware.JWTAuthMiddleware(), service.UpdatePersonalInfo)
 	//点赞帖子
