@@ -77,7 +77,7 @@ func main() {
 		service.SearchPost(c)
 	})
 	//管理员登录
-	r.POST("/api/admlogin", middleware.JWTAuthMiddleware(), middleware.AdminAuthMiddleware(), func(c *gin.Context) {
+	r.POST("/api/admlogin", func(c *gin.Context) {
 		fmt.Println("收到管理员登录请求")
 		service.AdmLogin(c)
 	})

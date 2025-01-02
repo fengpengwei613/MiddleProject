@@ -48,7 +48,6 @@ func GenerateToken(userID, userRole string) (string, error) {
 
 // 解析和验证 JWT token
 func ParseToken(tokenString string) (*CustomClaims, error) {
-	fmt.Println("tokenString:", tokenString)
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return secretKey, nil
 	})
@@ -56,7 +55,6 @@ func ParseToken(tokenString string) (*CustomClaims, error) {
 	if err != nil || !token.Valid {
 		return nil, fmt.Errorf("invalid or expired token")
 	}
-
 
 	claims, ok := token.Claims.(*CustomClaims)
 	if !ok {
