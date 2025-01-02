@@ -399,59 +399,88 @@ func GetUserStatus(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "缺少uid参数"})
 		return
 	}
-	query := `
+	query_baned := `
 		SELECT type, start_time,end_time
 		FROM usermutes 
-		WHERE user_id = ? AND NOW() BETWEEN start_time AND end_time 
-		ORDER BY start_time DESC LIMIT 1`
+		WHERE user_id = ? AND NOW() BETWEEN start_time AND end_time AND type=0`
 
 	var muteType int
 	var startTimeBytes, endTimeBytes []byte
-	err = db.QueryRow(query, uid).Scan(&muteType, &startTimeBytes, &endTimeBytes)
-	if err == sql.ErrNoRows {
-		// 用户没有封禁或禁言记录
-		c.JSON(http.StatusOK, gin.H{
-			"status": "normal",
-		})
-		return
-	} else if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询禁言/封禁记录失败"})
-		return
-	}
-
-	startTime, err := time.Parse("2006-01-02 15:04:05", string(startTimeBytes))
-	if err != nil {
-		fmt.Printf("Error parsing start_time: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid start_time"})
-		return
-	}
-
-	endTime, err := time.Parse("2006-01-02 15:04:05", string(endTimeBytes))
-	if err != nil {
-		fmt.Printf("Error parsing end_time: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid end_time"})
-		return
-	}
-	days := math.Round(endTime.Sub(startTime).Hours()/24*10) / 10
-	fmt.Println(days)
-	var status string
-	var lifttime string
-
-	if muteType == 0 {
-		// 封禁状态
-		status = "baned"
-		lifttime = endTime.Format("2006-01-02 15:04:05")
-	} else if muteType == 1 {
-		// 禁言状态
+	err = db.QueryRow(query_baned, uid).Scan(&muteType, &startTimeBytes, &endTimeBytes)
+	if err ==nil {
+		startTime, err := time.Parse("2006-01-02 15:04:05", string(startTimeBytes))
+		if err != nil {
+			fmt.Printf("Error parsing start_time: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid start_time"})
+			return
+		}
+	
+		endTime, err := time.Parse("2006-01-02 15:04:05", string(endTimeBytes))
+		if err != nil {
+			fmt.Printf("Error parsing end_time: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid end_time"})
+			return
+		}
+		days := math.Round(endTime.Sub(startTime).Hours()/24*10) / 10
+		fmt.Println(days)
+		var status string
+		var lifttime string
 		status = "restricted"
 		lifttime = endTime.Format("2006-01-02 15:04:05")
-	}
+		c.JSON(http.StatusOK, UserMuteStatus{
+			Status:   status,
+			Lifttime: lifttime,
+			Days:     days,
+		})
+		return  
+	}else if err!=sql.ErrNoRows{
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询封禁记录失败"})
+		return 
 
+}
+
+    query_stred := `
+		SELECT type, start_time,end_time
+		FROM usermutes 
+		WHERE user_id = ? AND NOW() BETWEEN start_time AND end_time AND type=1`
+
+	var muteType1 int
+	var startTimeBytes1, endTimeBytes1 []byte
+	err = db.QueryRow(query_stred, uid).Scan(&muteType1, &startTimeBytes1, &endTimeBytes1)
+	if err == nil {
+		startTime1, err := time.Parse("2006-01-02 15:04:05", string(startTimeBytes))
+		if err != nil {
+			fmt.Printf("Error parsing start_time: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid start_time"})
+			return
+		}
+	
+		endTime1, err := time.Parse("2006-01-02 15:04:05", string(endTimeBytes))
+		if err != nil {
+			fmt.Printf("Error parsing end_time: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid end_time"})
+			return
+		}
+		days1 := math.Round(endTime1.Sub(startTime1).Hours()/24*10) / 10
+		fmt.Println(days1)
+		var status1 string
+		var lifttime1 string
+		status1 = "restricted"
+		lifttime1 = endTime1.Format("2006-01-02 15:04:05")
+		c.JSON(http.StatusOK, UserMuteStatus{
+			Status:   status1,
+			Lifttime: lifttime1,
+			Days:     days1,
+		})
+		return 
+	}else if err!=sql.ErrNoRows{
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询禁言记录失败"})
+		return 
+	}
 	c.JSON(http.StatusOK, UserMuteStatus{
-		Status:   status,
-		Lifttime: lifttime,
-		Days:     days,
+	    Status:   "normal",
 	})
+
 
 }
 
