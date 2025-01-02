@@ -405,15 +405,15 @@ func GetUserStatus(c *gin.Context) {
 	var muteType int
 	var startTimeBytes, endTimeBytes string
 	err = db.QueryRow(query_baned, uid).Scan(&muteType, &startTimeBytes, &endTimeBytes)
-	if err ==nil {
-		startTime,err:=time.Parse("2006-01-02 15:04:05",startTimeBytes)
+	if err == nil {
+		startTime, err := time.Parse("2006-01-02 15:04:05", startTimeBytes)
 		fmt.Printf(startTimeBytes)
 		if err != nil {
 			fmt.Printf("Error parsing start_time: %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid start_time"})
 			return
 		}
-	
+
 		endTime, err := time.Parse("2006-01-02 15:04:05", endTimeBytes)
 		if err != nil {
 			fmt.Printf("Error parsing end_time: %v\n", err)
@@ -453,7 +453,7 @@ func GetUserStatus(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid start_time"})
 			return
 		}
-	
+
 		endTime1, err := time.Parse("2006-01-02 15:04:05", endTimeBytes1)
 		if err != nil {
 			fmt.Printf("Error parsing end_time: %v\n", err)
@@ -480,14 +480,17 @@ func GetUserStatus(c *gin.Context) {
 
 }
 
+type Info struct {
+	Uid string `json:"uid"`
+}
+
 // 解除禁言封禁接口
 func HandleUnmute(c *gin.Context) {
-	var req struct {
-		Uid string `json:"uid"`
-	}
+	var req Info
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
+		fmt.Println(err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "请求参数格式错误"})
 		return
 	}
