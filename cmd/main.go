@@ -15,10 +15,10 @@ func main() {
 	r := gin.Default()
 	//r.Use(cors.Default())
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:8080"},                   // 前端域名
+		AllowOrigins:     []string{"*"},                                       // 前端域名
 		AllowMethods:     []string{"GET", "POST", "OPTIONS"},                  // 支持的请求方法
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"}, // 支持的请求头
-		ExposeHeaders:    []string{"Content-Length"},
+		ExposeHeaders:    []string{"Content-Length"},                          // 允许暴露的请求头
 		AllowCredentials: true,
 	}))
 	// POST 请求：发验证码
@@ -156,6 +156,11 @@ func main() {
 		fmt.Println("收到获取封禁信息请求")
 		service.AdmGetBaninfo(c)
 	})
+	//用户删除自己的账号
+	r.POST("/api/adm/deletemessage", middleware.JWTAuthMiddleware(), func(c *gin.Context) {
+		fmt.Println("收到删除系统消息请求")
+		service.Del_sysinfo(c)
+	})
 
 	//获取个人设置接口
 	r.GET("/api/persetting", middleware.JWTAuthMiddleware(), service.HandleGetPersonalSettings)
@@ -183,7 +188,7 @@ func main() {
 	//举报接口
 	r.POST("/api/report", middleware.JWTAuthMiddleware(), service.HandleReport)
 	//获取个人发帖
-	r.GET("/api/perlogs", middleware.JWTAuthMiddleware(), middleware.JWTAuthMiddleware(), service.GetPersonalPostLogs)
+	r.GET("/api/perlogs", middleware.JWTAuthMiddleware(), service.GetPersonalPostLogs)
 
 	//获取个人喜欢帖子
 	r.GET("/api/perlikelogs", middleware.JWTAuthMiddleware(), service.GetPersonalLikePosts)

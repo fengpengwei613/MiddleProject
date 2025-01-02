@@ -929,7 +929,7 @@ func AdmIgnore(c *gin.Context) {
 		return
 	}
 	if typestr == "log" {
-		query := "UPDATE postreports SET is_handled=1 WHERE report_id = ?"
+		query := "delete from postreports WHERE report_id = ?"
 		_, err = db.Exec(query, reportid)
 		if err != nil {
 			db.Rollback()
@@ -937,7 +937,7 @@ func AdmIgnore(c *gin.Context) {
 			return
 		}
 	} else if typestr == "comment" {
-		query := "UPDATE commentreports SET is_handled=1 WHERE report_id = ?"
+		query := "delete from commentreports WHERE report_id = ?"
 		_, err = db.Exec(query, reportid)
 		if err != nil {
 			db.Rollback()

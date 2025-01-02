@@ -733,7 +733,7 @@ func GetFollowers(c *gin.Context) {
 	}
 
 	page := c.DefaultQuery("page", "1")
-	pageSize := 10
+	pageSize := 5
 	currentPage, _ := strconv.Atoi(page)
 	offset := (currentPage - 1) * pageSize
 
@@ -831,7 +831,7 @@ func GetFollowing(c *gin.Context) {
 		return
 	}
 
-	pageSize := 10
+	pageSize := 5
 	currentPage, _ := strconv.Atoi(page)
 	offset := (currentPage - 1) * pageSize
 
