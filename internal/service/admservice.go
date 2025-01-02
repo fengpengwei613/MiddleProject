@@ -814,9 +814,9 @@ func AdmBan(c *gin.Context) {
 	}
 	query := "INSERT INTO sysinfo (uid, type, content) VALUES (?, ?, ?)"
 	var type_r string
-	if typestr == "封禁" {
+	if typestr == "ban" {
 		type_r = "封禁通知"
-	} else if typestr == "禁言" {
+	} else if typestr == "restrick" {
 		type_r = "禁言通知"
 	}
 	_, err = db.Exec(query, uid, type_r, info)
