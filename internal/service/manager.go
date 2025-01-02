@@ -403,17 +403,28 @@ func GetUserStatus(c *gin.Context) {
 		WHERE user_id = ? AND NOW() BETWEEN start_time AND end_time AND type=0`
 
 	var muteType int
-	var startTimeBytes, endTimeBytes []byte
+	var startTimeBytes, endTimeBytes string
 	err = db.QueryRow(query_baned, uid).Scan(&muteType, &startTimeBytes, &endTimeBytes)
+<<<<<<< HEAD
 	if err == nil {
 		startTime, err := time.Parse("2006-01-02 15:04:05", string(startTimeBytes))
+=======
+	if err ==nil {
+		startTime,err:=time.Parse("2006-01-02 15:04:05",startTimeBytes)
+		fmt.Printf(startTimeBytes)
+>>>>>>> 7103e13cf1d32bdbf44d76e310757b45cf9d5e05
 		if err != nil {
 			fmt.Printf("Error parsing start_time: %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid start_time"})
 			return
 		}
+<<<<<<< HEAD
 
 		endTime, err := time.Parse("2006-01-02 15:04:05", string(endTimeBytes))
+=======
+	
+		endTime, err := time.Parse("2006-01-02 15:04:05", endTimeBytes)
+>>>>>>> 7103e13cf1d32bdbf44d76e310757b45cf9d5e05
 		if err != nil {
 			fmt.Printf("Error parsing end_time: %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid end_time"})
@@ -423,7 +434,7 @@ func GetUserStatus(c *gin.Context) {
 		fmt.Println(days)
 		var status string
 		var lifttime string
-		status = "restricted"
+		status = "baned"
 		lifttime = endTime.Format("2006-01-02 15:04:05")
 		c.JSON(http.StatusOK, UserMuteStatus{
 			Status:   status,
@@ -443,17 +454,22 @@ func GetUserStatus(c *gin.Context) {
 		WHERE user_id = ? AND NOW() BETWEEN start_time AND end_time AND type=1`
 
 	var muteType1 int
-	var startTimeBytes1, endTimeBytes1 []byte
+	var startTimeBytes1, endTimeBytes1 string
 	err = db.QueryRow(query_stred, uid).Scan(&muteType1, &startTimeBytes1, &endTimeBytes1)
 	if err == nil {
-		startTime1, err := time.Parse("2006-01-02 15:04:05", string(startTimeBytes))
+		startTime1, err := time.Parse("2006-01-02 15:04:05", startTimeBytes1)
 		if err != nil {
 			fmt.Printf("Error parsing start_time: %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid start_time"})
 			return
 		}
+<<<<<<< HEAD
 
 		endTime1, err := time.Parse("2006-01-02 15:04:05", string(endTimeBytes))
+=======
+	
+		endTime1, err := time.Parse("2006-01-02 15:04:05", endTimeBytes1)
+>>>>>>> 7103e13cf1d32bdbf44d76e310757b45cf9d5e05
 		if err != nil {
 			fmt.Printf("Error parsing end_time: %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid end_time"})
@@ -475,9 +491,13 @@ func GetUserStatus(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询禁言记录失败"})
 		return
 	}
+<<<<<<< HEAD
 	c.JSON(http.StatusOK, UserMuteStatus{
 		Status: "normal",
 	})
+=======
+	c.JSON(http.StatusOK, gin.H{"status": "normal"})
+>>>>>>> 7103e13cf1d32bdbf44d76e310757b45cf9d5e05
 
 }
 
