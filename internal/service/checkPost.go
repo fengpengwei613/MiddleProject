@@ -378,7 +378,7 @@ func GetPersonalCollectPosts(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isvalid": false, "failreason": "查询用户是否显示收藏失败"})
 		return
 	}
-	if !showcollect {
+	if !showcollect&& uid!=aimuid {
 		c.JSON(http.StatusBadRequest, gin.H{"isvalid": false, "failreason": "用户不显示收藏"})
 		return
 	}
