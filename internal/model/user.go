@@ -134,3 +134,11 @@ type PersonalInfo struct {
 	IsAttion     bool     `json:"isattion"`
 	FansNum      string   `json:"fansnum"`
 }
+
+
+type ChangeEmail struct {
+	Uid string `json:"uid"`
+	Code string `json:"code"`
+	NewMail string `json:"newemail"`
+
+}

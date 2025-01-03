@@ -216,6 +216,9 @@ func main() {
 	r.POST("/api/adm/liftBan", middleware.JWTAuthMiddleware(), middleware.AdminAuthMiddleware(), service.HandleUnmute)
 	//修改被限制(封禁，禁言)时间
 	r.POST("/api/adm/modLiftDays", middleware.JWTAuthMiddleware(), middleware.AdminAuthMiddleware(), service.HandleUpdateMuteTime)
+    
+    //修改邮箱
+	r.POST("/api/changemail", middleware.JWTAuthMiddleware(), service.ChangeEmail)
 
 	//获取用户状态
 	r.GET("/api/adm/getUserStatus", middleware.JWTAuthMiddleware(), service.GetUserStatus)

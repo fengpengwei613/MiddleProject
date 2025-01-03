@@ -889,3 +889,80 @@ func GetFollowing(c *gin.Context) {
 		"totalPages": totalPages,
 	})
 }
+
+
+
+//修改邮箱
+func ChangeEmail(c *gin.Context) {
+    db, err_conn := repository.Connect()
+	if err_conn != nil {
+		c.JSON(500, gin.H{"isok": false, "failreason": "连接数据库失败"})
+		return
+	}
+	var requestData model.ChangeEmail
+	if err := c.ShouldBindJSON(&requestData); err != nil {
+		c.JSON(400, gin.H{"isok": false, "failreason": "绑定请求数据失败"})
+		return
+	}
+	var userExists bool
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE user_id = ?)", requestData.Uid).Scan(&userExists)
+	if err != nil {
+		c.JSON(500, gin.H{"isok": false, "failreason": "检查用户是否存在时发生错误"})
+		return
+	}
+	if !userExists {
+		c.JSON(400, gin.H{"isok": false, "failreason": "用户不存在"})
+		return
+	}
+
+	query := "SELECT code FROM verificationcodes v,users u WHERE v.email =u.email  AND u.user_id = ? AND expiration > NOW() ORDER BY expiration DESC LIMIT 1"
+	row := db.QueryRow(query, requestData.Uid)
+	var code string
+	err_check := row.Scan(&code)
+	if err_check != nil || code != requestData.Code {
+		c.JSON(400, gin.H{"isok": false, "failreason": "验证码错误"})
+		return
+	}
+	isemail :=isEmailFormat(requestData.NewMail)
+	if !isemail {
+	    c.JSON(400, gin.H{"isok": false, "failreason": "邮箱格式错误"})
+		return
+	}
+
+	err_re, result := updateEmail(db, requestData.Uid, requestData.NewMail)
+	if err_re != nil {
+		c.JSON(500, gin.H{"isok": false, "failreason": result})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"isok":       true,
+	})
+}
+
+//更新邮箱
+func updateEmail(db *sql.DB, uid string, newemail string) (error,string) {
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err, "开启事务失败"
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare("UPDATE users SET email = ? WHERE user_id = ?")
+	if err != nil {
+		return err,"准备更新语句失败"
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(newemail, uid)
+	if err != nil {
+		return err, "更新密码失败"
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err, "提交事务失败"
+	}
+	return nil,  ""
+}
