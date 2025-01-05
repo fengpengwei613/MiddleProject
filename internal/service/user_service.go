@@ -905,7 +905,7 @@ func ChangeEmail(c *gin.Context) {
 		return
 	}
 	var userExists bool
-	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE user_id = ?)", requestData.Uid).Scan(&userExists)
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE user_id = ? or email = ?)", requestData.Uid, requestData.Uid).Scan(&userExists)
 	if err != nil {
 		c.JSON(500, gin.H{"isok": false, "failreason": "检查用户是否存在时发生错误"})
 		return
