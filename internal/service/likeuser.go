@@ -36,6 +36,8 @@ func PerformFollow(tx *sql.Tx, followerID, followedID string, actionType string)
 		}
 		//添加关注
 		query := "INSERT INTO userfollows (follower_id, followed_id,follow_time) VALUES (?, ?,?)"
+		location, _ := time.LoadLocation("Asia/Shanghai") // 设置时区为上海
+		time.Local = location
 		_, err := tx.Exec(query, followerID, followedID, time.Now())
 		if err != nil {
 			fmt.Errorf("关注失败：%v", err)
@@ -181,6 +183,8 @@ func addLikeReply(tx *sql.Tx, uid, comID string, replyID string) error {
 	}
 	//插入点赞记录
 	insertQuery := "INSERT INTO CommentLikes (comment_id, liker_id,like_time) VALUES (?, ?,?)"
+	location, _ := time.LoadLocation("Asia/Shanghai") // 设置时区为上海
+	time.Local = location
 	_, err = tx.Exec(insertQuery, replyID, uid, time.Now())
 	if err != nil {
 		return fmt.Errorf("插入点赞记录失败：%v", err)
@@ -290,23 +294,24 @@ func LikeReply(c *gin.Context) {
 }
 
 // 举报评论/回复
-func ReportComment(tx *sql.Tx, uid, comID, reason string,type1 string,) error {
+func ReportComment(tx *sql.Tx, uid, comID, reason string, type1 string) error {
 	if comID == "" {
 		return fmt.Errorf("评论或回复ID不能为空")
 	}
-	queryself:="SELECT commenter_id FROM comments WHERE comment_id=?"
+	queryself := "SELECT commenter_id FROM comments WHERE comment_id=?"
 	var comment_user_id string
 	err := tx.QueryRow(queryself, comID).Scan(&comment_user_id)
 	if err != nil {
 		return fmt.Errorf("查询是否是本人失败")
 	}
-	if comment_user_id==uid{
+	if comment_user_id == uid {
 		return fmt.Errorf("不能举报自己")
 	}
 
-
 	query := "INSERT INTO CommentReports (reporter_id,comment_id,reason,report_time,rpttype) VALUES (?,?,?,?,?)"
-	_, err = tx.Exec(query, uid, comID, reason, time.Now(),type1)
+	location, _ := time.LoadLocation("Asia/Shanghai") // 设置时区为上海
+	time.Local = location
+	_, err = tx.Exec(query, uid, comID, reason, time.Now(), type1)
 	if err != nil {
 		return fmt.Errorf("sql语句插入失败")
 	}
@@ -314,23 +319,25 @@ func ReportComment(tx *sql.Tx, uid, comID, reason string,type1 string,) error {
 }
 
 // 举报帖子
-func ReportPost(tx *sql.Tx, uid, postID, reason string,type1 string) error {
+func ReportPost(tx *sql.Tx, uid, postID, reason string, type1 string) error {
 	if postID == "" {
 		return fmt.Errorf("帖子ID不能为空")
 	}
-	queryself:="SELECT user_id FROM Posts WHERE post_id=?"
+	queryself := "SELECT user_id FROM Posts WHERE post_id=?"
 	var post_user_id string
 	err := tx.QueryRow(queryself, postID).Scan(&post_user_id)
 	if err != nil {
 		fmt.Print(err)
 		return fmt.Errorf("查询是否是本人失败")
 	}
-	if post_user_id==uid{
+	if post_user_id == uid {
 		return fmt.Errorf("不能举报自己")
 	}
 
 	query := "INSERT INTO PostReports (reporter_id,post_id,reason,report_time,rpttype) VALUES (?,?,?,?,?)"
-	_, err = tx.Exec(query, uid, postID, reason, time.Now(),type1)
+	location, _ := time.LoadLocation("Asia/Shanghai") // 设置时区为上海
+	time.Local = location
+	_, err = tx.Exec(query, uid, postID, reason, time.Now(), type1)
 	if err != nil {
 		fmt.Print(err)
 		return fmt.Errorf("sql插入举报帖子失败")
@@ -346,13 +353,13 @@ func HandleReport(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "请求体格式错误"})
 		return
 	}
-    reporttarget:=reportData["reporttarget"].(string)
-	uid:=reportData["uid"].(string)
-	logid:=reportData["logid"].(string)
-	commentid:=reportData["commentid"].(string)
-	replyid:=reportData["replyid"].(string)
-	reason:=reportData["reason"].(string)
-	type1:=reportData["type"].(string)
+	reporttarget := reportData["reporttarget"].(string)
+	uid := reportData["uid"].(string)
+	logid := reportData["logid"].(string)
+	commentid := reportData["commentid"].(string)
+	replyid := reportData["replyid"].(string)
+	reason := reportData["reason"].(string)
+	type1 := reportData["type"].(string)
 
 	db, err := repository.Connect()
 	if err != nil {
@@ -369,20 +376,20 @@ func HandleReport(c *gin.Context) {
 	}
 
 	if reporttarget == "log" {
-		err = ReportPost(tx, uid, logid, reason,type1)
+		err = ReportPost(tx, uid, logid, reason, type1)
 		if err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err.Error()})
 			return
 		}
 	} else if reporttarget == "reply" {
-		err = ReportComment(tx, uid, replyid, reason,type1)
+		err = ReportComment(tx, uid, replyid, reason, type1)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err.Error()})
 			return
 		}
 	} else if reporttarget == "comment" {
-		err = ReportComment(tx, uid, commentid, reason,type1)
+		err = ReportComment(tx, uid, commentid, reason, type1)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": err.Error()})
 			return

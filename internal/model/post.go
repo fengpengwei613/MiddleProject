@@ -130,6 +130,15 @@ func LikePost(userID, postID int) (error, string) {
 		if err_update != nil {
 			return err_update, "更新点赞数失败"
 		}
+		var posterID int
+		err_get_poster := db_link.QueryRow("SELECT user_id FROM posts WHERE post_id = ?", postID).Scan(&posterID)
+		if err_get_poster != nil {
+			return err_get_poster, "获取发帖人信息失败"
+		}
+		_, err_update_user := db_link.Exec("UPDATE users SET likenum = likenum + 1 WHERE user_id = ?", posterID)
+		if err_update_user != nil {
+			return err_update_user, "更新发帖人获赞总数失败"
+		}
 		return nil, "点赞成功"
 	}
 	return nil, "您已经点赞过该帖子"
@@ -158,6 +167,15 @@ func DislikePost(userID, postID int) (error, string) {
 		_, err_update := db_link.Exec("UPDATE posts SET like_count = like_count - 1 WHERE post_id = ?", postID)
 		if err_update != nil {
 			return err_update, "更新点赞数失败"
+		}
+		var posterID int
+		err_get_poster := db_link.QueryRow("SELECT user_id FROM posts WHERE post_id = ?", postID).Scan(&posterID)
+		if err_get_poster != nil {
+			return err_get_poster, "获取发帖人信息失败"
+		}
+		_, err_update_user := db_link.Exec("UPDATE users SET likenum = likenum - 1 WHERE user_id = ?", posterID)
+		if err_update_user != nil {
+			return err_update_user, "更新发帖人获赞总数失败"
 		}
 		return nil, "取消点赞成功"
 	}
@@ -245,6 +263,15 @@ func LikeComment(userID, commentID int) (error, string) {
 		if err_update != nil {
 			return err_update, "更新评论点赞数失败"
 		}
+		var commenterID int
+		err_get_commenter := db_link.QueryRow("SELECT commenter_id FROM comments WHERE comment_id = ?", commentID).Scan(&commenterID)
+		if err_get_commenter != nil {
+			return err_get_commenter, "获取评论者信息失败"
+		}
+		_, err_update_user := db_link.Exec("UPDATE users SET likenum = likenum + 1 WHERE user_id = ?", commenterID)
+		if err_update_user != nil {
+			return err_update_user, "更新评论者获赞总数失败"
+		}
 		return nil, "点赞成功"
 	}
 	return nil, "您已经点赞过该评论"
@@ -273,6 +300,15 @@ func UnLikeComment(userID, commentID int) (error, string) {
 		_, err_update := db_link.Exec("UPDATE comments SET like_count = like_count - 1 WHERE comment_id = ?", commentID)
 		if err_update != nil {
 			return err_update, "更新评论点赞数失败"
+		}
+		var commenterID int
+		err_get_commenter := db_link.QueryRow("SELECT commenter_id FROM comments WHERE comment_id = ?", commentID).Scan(&commenterID)
+		if err_get_commenter != nil {
+			return err_get_commenter, "获取评论者信息失败"
+		}
+		_, err_update_user := db_link.Exec("UPDATE users SET likenum = likenum - 1 WHERE user_id = ?", commenterID)
+		if err_update_user != nil {
+			return err_update_user, "更新评论者获赞总数失败"
 		}
 		return nil, "取消点赞成功"
 	}

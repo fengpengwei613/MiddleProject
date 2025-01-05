@@ -53,11 +53,16 @@ func SendEmail(to string, subject string, body string, model string) string {
 
 	query := "INSERT INTO verificationcodes values(?,?,?)"
 	//5分钟有效期
+	location, _ := time.LoadLocation("Asia/Shanghai") // 设置时区为上海
+	time.Local = location
 	currentTime := time.Now()
 	chinaTime := currentTime
+	fmt.Println(chinaTime)
 	newTime := chinaTime.Add(5 * time.Minute)
+	fmt.Println(newTime)
+	timestr := newTime.Format("2006-01-02 15:04:05")
 
-	_, err = db.Exec(query, to, body, newTime)
+	_, err = db.Exec(query, to, body, timestr)
 	if err != nil {
 		db.Rollback()
 		return "验证码存储失败"

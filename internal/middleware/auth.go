@@ -20,6 +20,8 @@ var secretKey = []byte("bXlTZXJldEtleU5hY2tTZXh2cXlNT1BQRXZ6YmVhdHppYm9m5vbT28yZ
 
 // 生成jwt
 func GenerateToken(userID, userRole string) (string, error) {
+	location, _ := time.LoadLocation("Asia/Shanghai") // 设置时区为上海
+	time.Local = location
 	// 设置 token 的过期时间
 	expirationTime := time.Now().Add(24 * time.Hour) // 24 小时有效期
 

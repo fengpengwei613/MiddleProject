@@ -653,7 +653,8 @@ func UpdateMuteTime(tx *sql.Tx, uid string, days int) error {
 	}
 
 	newEndTime := currentEndTime.Add(time.Duration(days) * time.Hour * 24)
-
+	location, _ := time.LoadLocation("Asia/Shanghai") // 设置时区为上海
+	time.Local = location
 	if newEndTime.Before(time.Now()) {
 		_, err = tx.Exec("UPDATE usermutes SET end_time = NOW() WHERE user_id = ? AND (type = 0 OR type = 1) AND end_time IS NOT NULL", uid)
 		if err != nil {
