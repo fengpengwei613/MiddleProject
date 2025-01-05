@@ -40,6 +40,16 @@ func PerformFollow(tx *sql.Tx, followerID, followedID string, actionType string)
 		if err != nil {
 			fmt.Errorf("关注失败：%v", err)
 		}
+		query1:="UPDATE users SET attionnum=attionnum+1 WHERE user_id=?"
+		_, err1 = tx.Exec(query1, followerID)
+		if  err1 != nil {
+			return fmt.Errorf("更新关注数量失败")
+		}
+		query2:="UPDATE users SET fansnum=fansnum+1 WHERE user_id=?"
+		_, err2 := tx.Exec(query2, followedID)
+		if err2 != nil {
+			return fmt.Errorf("更新粉丝数量失败")
+		}
 	} else if actionType == "0" {
 		//检查是否已经关注
 		check1 := "SELECT COUNT(*) FROM userfollows WHERE follower_id = ? AND followed_id = ?"
@@ -56,6 +66,16 @@ func PerformFollow(tx *sql.Tx, followerID, followedID string, actionType string)
 		_, err := tx.Exec(query, followerID, followedID)
 		if err != nil {
 			return fmt.Errorf("取消关注失败：%v", err)
+		}
+		query1:="UPDATE users SET attionnum=attionnum-1 WHERE user_id=?"
+		_, err1 = tx.Exec(query1, followerID)
+		if  err1 != nil {
+			return fmt.Errorf("更新关注数量失败")
+		}
+		query2:="UPDATE users SET fansnum=fansnum-1 WHERE user_id=?"
+		_, err2 := tx.Exec(query2, followedID)
+		if err2 != nil {
+			return fmt.Errorf("更新粉丝数量失败")
 		}
 	} else {
 		return fmt.Errorf("无效的操作类型")
@@ -170,8 +190,15 @@ func addLikeReply(tx *sql.Tx, uid, comID string, replyID string) error {
 	updateQuery := "UPDATE Comments SET like_count=like_count+1 WHERE comment_id=? AND parent_comment_id=?"
 	_, err = tx.Exec(updateQuery, replyID, comID)
 	if err != nil {
-		return fmt.Errorf("更新点赞数量失败：%v", err)
+		return fmt.Errorf("更新帖子点赞数量失败：%v", err)
 	}
+	query1:="UPDATE users SET likenum=likenum+1 WHERE user_id=?"
+	_, err1 := tx.Exec(query1,uid)
+	if  err1 != nil {
+		return fmt.Errorf("更新个人喜欢数量失败")
+	}
+
+
 	return nil
 }
 
@@ -200,6 +227,11 @@ func cancelLikeReply(tx *sql.Tx, uid, comID string, replyID string) error {
 	_, err = tx.Exec(updateQuery, replyID, comID)
 	if err != nil {
 		return fmt.Errorf("更新点赞数量失败：%v", err)
+	}
+	query1:="UPDATE users SET likenum=likenum-1 WHERE user_id=?"
+	_, err1 := tx.Exec(query1,uid)
+	if  err1 != nil {
+		return fmt.Errorf("更新个人喜欢数量失败")
 	}
 	return nil
 }
