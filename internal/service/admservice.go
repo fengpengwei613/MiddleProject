@@ -452,6 +452,8 @@ func MakeSysinfo(Htype string, rtype string, id int, day int) (bool, string) {
 		content = "您的评论《" + content + "》违反社区规则，已被管理员删除。"
 	}
 	var info string
+	location, _ := time.LoadLocation("Asia/Shanghai") // 设置时区为上海
+	time.Local = location
 	currentTime := time.Now()
 	chinaTime := currentTime
 	if Htype == "封禁" {
@@ -861,6 +863,8 @@ func AdmBan(c *gin.Context) {
 
 		//插入封禁表
 		query = "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
+		location, _ := time.LoadLocation("Asia/Shanghai") // 设置时区为上海
+		time.Local = location
 		currentTime := time.Now()
 		chinaTime := currentTime
 		start := chinaTime
@@ -1184,6 +1188,8 @@ func AdmOnlyBan(c *gin.Context) {
 			}
 		} else {
 			query := "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
+			location, _ := time.LoadLocation("Asia/Shanghai") // 设置时区为上海
+			time.Local = location
 			currentTime := time.Now()
 			chinaTime := currentTime
 			start := chinaTime
@@ -1227,6 +1233,8 @@ func AdmOnlyBan(c *gin.Context) {
 			}
 		} else {
 			query := "INSERT INTO usermutes (user_id, type, start_time,end_time) VALUES (?, ?, ?, ?)"
+			location, _ := time.LoadLocation("Asia/Shanghai") // 设置时区为上海
+			time.Local = location
 			currentTime := time.Now()
 			chinaTime := currentTime
 			start := chinaTime

@@ -80,7 +80,8 @@ func SendMailInterface(c *gin.Context) {
 		c.JSON(400, gin.H{"isok": false, "failreason": "缺少邮箱"})
 		return
 	}
-
+	location, _ := time.LoadLocation("Asia/Shanghai") // 设置时区为上海
+	time.Local = location
 	//生成随机数
 	rand.Seed(time.Now().UnixNano())
 	randomNum := rand.Intn(999999-100000+1) + 100000
@@ -916,8 +917,8 @@ func ChangeEmail(c *gin.Context) {
 		return
 	}
 
-	query := "SELECT code FROM verificationcodes v,users u WHERE v.email =u.email  AND u.user_id = ? AND expiration > NOW() ORDER BY expiration DESC LIMIT 1"
-	row := db.QueryRow(query, requestData.Uid)
+	query := "SELECT code FROM verificationcodes WHERE email = ? AND expiration > NOW() ORDER BY expiration DESC LIMIT 1"
+	row := db.QueryRow(query, requestData.NewMail)
 	var code string
 	err_check := row.Scan(&code)
 	if err_check != nil || code != requestData.Code {

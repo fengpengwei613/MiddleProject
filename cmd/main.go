@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"middleproject/internal/middleware"
 	"middleproject/internal/service"
+	"time"
 
 	_ "middleproject/internal/middleware"
 
@@ -12,6 +13,10 @@ import (
 )
 
 func main() {
+	// 设置全局时区
+	location, _ := time.LoadLocation("Asia/Shanghai") // 设置时区为上海
+	time.Local = location
+	fmt.Println("当前时区：", time.Now())
 	r := gin.Default()
 	//r.Use(cors.Default())
 	r.Use(cors.New(cors.Config{
@@ -216,8 +221,8 @@ func main() {
 	r.POST("/api/adm/liftBan", middleware.JWTAuthMiddleware(), middleware.AdminAuthMiddleware(), service.HandleUnmute)
 	//修改被限制(封禁，禁言)时间
 	r.POST("/api/adm/modLiftDays", middleware.JWTAuthMiddleware(), middleware.AdminAuthMiddleware(), service.HandleUpdateMuteTime)
-    
-    //修改邮箱
+
+	//修改邮箱
 	r.POST("/api/changemail", middleware.JWTAuthMiddleware(), service.ChangeEmail)
 
 	//获取用户状态
