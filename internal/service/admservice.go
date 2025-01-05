@@ -89,6 +89,7 @@ func GetallUser(c *gin.Context) {
 		return
 	}
 	defer db.Close()
+	page = page - 1
 	query := "SELECT user_id, Uname, avatar FROM users limit ?, 10"
 	rows, err := db.Query(query, page*10)
 	if err != nil {
@@ -149,6 +150,7 @@ func GetallPost(c *gin.Context) {
 		return
 	}
 	defer db.Close()
+	page = page - 1
 	query := "select post_id,posts.user_id,Uname,avatar,title,content,post_subject,publish_time from posts,users where posts.user_id = users.user_id limit ?, 10"
 	rows, err := db.Query(query, page*10)
 	fmt.Println("1")
@@ -496,9 +498,9 @@ func UserFeedback(Htype string, day int, uid int) (bool, string) {
 	var content string
 	infor = "尊敬的用户，您好！您向我们提出的反馈我们已经处理，处理结果如下：\n  "
 	daystr := strconv.Itoa(day)
-	if Htype == "封禁" {
+	if Htype == "ban" {
 		content = uname + "发布的内容因为违反社区规则，已被封禁" + daystr + "天。"
-	} else if Htype == "禁言" {
+	} else if Htype == "restrick" {
 		content = uname + "发布的内容因为违反社区规则，已被禁言" + daystr + "天。"
 	} else if Htype == "警告" {
 		content = uname + "发布的内容因为违反社区规则，已被警告。"
@@ -837,7 +839,7 @@ func AdmBan(c *gin.Context) {
 	}
 
 	real_type := 0
-	if typestr == "禁言" {
+	if typestr == "restrick" {
 		real_type = 1
 	}
 	//查询用户是否已经被封禁/禁言

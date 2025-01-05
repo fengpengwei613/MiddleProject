@@ -890,11 +890,9 @@ func GetFollowing(c *gin.Context) {
 	})
 }
 
-
-
-//修改邮箱
+// 修改邮箱
 func ChangeEmail(c *gin.Context) {
-    db, err_conn := repository.Connect()
+	db, err_conn := repository.Connect()
 	if err_conn != nil {
 		c.JSON(500, gin.H{"isok": false, "failreason": "连接数据库失败"})
 		return
@@ -904,6 +902,9 @@ func ChangeEmail(c *gin.Context) {
 		c.JSON(400, gin.H{"isok": false, "failreason": "绑定请求数据失败"})
 		return
 	}
+	fmt.Println(requestData.Code)
+	fmt.Println(requestData.NewMail)
+	fmt.Println(requestData.Uid)
 	var userExists bool
 	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE user_id = ?)", requestData.Uid).Scan(&userExists)
 	if err != nil {
@@ -923,9 +924,9 @@ func ChangeEmail(c *gin.Context) {
 		c.JSON(400, gin.H{"isok": false, "failreason": "验证码错误"})
 		return
 	}
-	isemail :=isEmailFormat(requestData.NewMail)
+	isemail := isEmailFormat(requestData.NewMail)
 	if !isemail {
-	    c.JSON(400, gin.H{"isok": false, "failreason": "邮箱格式错误"})
+		c.JSON(400, gin.H{"isok": false, "failreason": "邮箱格式错误"})
 		return
 	}
 
@@ -936,12 +937,12 @@ func ChangeEmail(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{
-		"isok":       true,
+		"isok": true,
 	})
 }
 
-//更新邮箱
-func updateEmail(db *sql.DB, uid string, newemail string) (error,string) {
+// 更新邮箱
+func updateEmail(db *sql.DB, uid string, newemail string) (error, string) {
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -951,7 +952,7 @@ func updateEmail(db *sql.DB, uid string, newemail string) (error,string) {
 
 	stmt, err := tx.Prepare("UPDATE users SET email = ? WHERE user_id = ?")
 	if err != nil {
-		return err,"准备更新语句失败"
+		return err, "准备更新语句失败"
 	}
 	defer stmt.Close()
 
@@ -964,5 +965,5 @@ func updateEmail(db *sql.DB, uid string, newemail string) (error,string) {
 	if err != nil {
 		return err, "提交事务失败"
 	}
-	return nil,  ""
+	return nil, ""
 }
