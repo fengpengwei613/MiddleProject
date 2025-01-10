@@ -244,7 +244,6 @@ func UpdatePersonalSettings(c *gin.Context) {
 	var newsetting model.UpdatePersonalSettings
 	if err := c.ShouldBindJSON(&newsetting); err != nil {
 		tx.Rollback()
-		//fmt.Println(err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"isok": false, "failreason": "无效的 JSON 数据"})
 		return
 	}

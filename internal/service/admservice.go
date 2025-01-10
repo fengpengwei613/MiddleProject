@@ -1169,7 +1169,7 @@ func AdmOnlyBan(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "事务开启失败"})
 		return
 	}
-	if typestr == "ban" {
+	if typestr == "baned" {
 		var startstr string
 		var endstr string
 		//查询用户是否已经被封禁
@@ -1214,7 +1214,7 @@ func AdmOnlyBan(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"isok": false, "failreason": "系统消息存储失败"})
 			return
 		}
-	} else if typestr == "restrick" {
+	} else if typestr == "restrickted" {
 		var startstr string
 		var endstr string
 		//查询用户是否已经被封禁/禁言

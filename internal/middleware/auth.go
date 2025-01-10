@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"database/sql"
 	"fmt"
+	"middleproject/internal/repository"
 	"net/http"
 	"strings"
 	"time"
@@ -45,6 +47,20 @@ func GenerateToken(userID, userRole string) (string, error) {
 		return "", err
 	}
 
+	// 将 token 存储到数据库
+	db_conn, err := repository.Connect()
+	if err != nil {
+		return "", err
+	}
+	defer db_conn.Close()
+	db, _ := db_conn.Begin()
+	str := "update users set token = ? where user_id = ?"
+	_, err = db.Exec(str, signedToken, userID)
+	if err != nil {
+		db.Rollback()
+		return "", err
+	}
+	db.Commit()
 	return signedToken, nil
 }
 
@@ -87,7 +103,29 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
+		//验证token是否跟数据库中的token一致
+		db_conn, err := repository.Connect()
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "数据库连接失败"})
+			c.Abort()
+			return
+		}
+		defer db_conn.Close()
+		db, _ := db_conn.Begin()
+		str := "select token from users where user_id = ?"
+		var str2 sql.NullString
+		err = db.QueryRow(str, claims.UserID).Scan(&str2)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "查询失败"})
+			c.Abort()
+			return
+		}
+		if str2.String != tokenString {
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "token不一致"})
+			c.Abort()
+			return
+		}
+		db.Commit()
 		// 将解析出的用户信息存储到上下文中，后续的处理函数可以通过 c.Get("user") 获取
 		c.Set("user", claims)
 
